@@ -185,28 +185,28 @@ export async function GET(request: NextRequest) {
       targetUserHouseData.map((data) => [data.userId, Math.round(Number(data.cpa) * 100)])
     );
 
-    // Build timeline: group by date, calculate commission using CPA difference
-    const timelineMap = new Map<string, number>();
+    // Build timeline: group by date, calculate commission using CPA difference (in cents)
+    const timelineMapCents = new Map<string, number>();
     for (let i = days; i >= 0; i--) {
       const date = new Date(now);
       date.setDate(now.getDate() - i);
       const dateStr = date.toISOString().slice(0, 10);
-      timelineMap.set(dateStr, 0);
+      timelineMapCents.set(dateStr, 0);
     }
 
     for (const snapshot of currentSnapshots) {
       const dateStr = new Date(snapshot.date).toISOString().slice(0, 10);
-      const current = timelineMap.get(dateStr) || 0;
+      const currentCents = timelineMapCents.get(dateStr) || 0;
 
       // Calculate commission using CPA difference: (My CPA - Their CPA) × QFTDS
       const snapshotUserCpaCents = cpaByCpnserId.get(snapshot.userId) || 0;
       const cpaDifferenceCents = Math.max(0, userCpaCents - snapshotUserCpaCents);
       const commissionCents = cpaDifferenceCents * snapshot.qftds;
 
-      timelineMap.set(dateStr, current + commissionCents / 100);
+      timelineMapCents.set(dateStr, currentCents + commissionCents);
     }
 
-    const timeline = Array.from(timelineMap, ([date, revenue]) => ({ date, revenue }));
+    const timeline = Array.from(timelineMapCents, ([date, revenueCents]) => ({ date, revenue: revenueCents / 100 }));
 
     // Build funnel: sum registros, ftds, qftds
     const funnel = currentSnapshots.reduce(
