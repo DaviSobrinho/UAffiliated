@@ -57,10 +57,20 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 
     const { searchParams } = new URL(request.url);
     const houseId = searchParams.get("houseId");
+    const timeframe = searchParams.get("timeframe") || "30d";
 
     if (!houseId) {
       return NextResponse.json({ error: "houseId é obrigatório" }, { status: 400 });
     }
+
+    const TIMEFRAME_DAYS: Record<string, number> = {
+      "7d": 7,
+      "30d": 30,
+      "3m": 90,
+      "6m": 180,
+      "1y": 365,
+    };
+    const days = TIMEFRAME_DAYS[timeframe] ?? 30;
 
     // Permission check
     const isAdmin = decoded.role === "ADMIN";
@@ -91,11 +101,28 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       },
     });
 
-    // Calculate meuRev (own revenue) using integer arithmetic (cents)
-    const meuRevCents = houseData ? Math.round(Number(houseData.cpa) * 100) * houseData.qftds : 0;
+    // Calculate date boundaries for the selected timeframe
+    const now = new Date();
+    now.setHours(0, 0, 0, 0);
+    const periodStart = new Date(now);
+    periodStart.setDate(now.getDate() - days);
+
+    // Calculate meuRev (own revenue) for the selected timeframe using snapshots
+    const userSnapshots = await prisma.dailySnapshot.findMany({
+      where: {
+        userId,
+        houseId,
+        date: { gte: periodStart },
+      },
+    });
+
+    const meuRevCents = userSnapshots.reduce((sum, snapshot) => {
+      const cpaCents = houseData ? Math.round(Number(houseData.cpa) * 100) : 0;
+      return sum + cpaCents * snapshot.qftds;
+    }, 0);
     const meuRev = meuRevCents / 100;
 
-    // Get direct children and calculate comissaoEquipe (difference in CPA)
+    // Get direct children and calculate comissaoEquipe for the selected timeframe
     const directChildrenIds = await getDirectChildren(userId);
 
     let comissaoEquipe = 0;
@@ -107,11 +134,26 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
         },
       });
 
+      // Get snapshots for direct children in the selected timeframe
+      const childrenSnapshots = await prisma.dailySnapshot.findMany({
+        where: {
+          userId: { in: directChildrenIds },
+          houseId,
+          date: { gte: periodStart },
+        },
+      });
+
+      const childQftdsMap = new Map<string, number>();
+      for (const snapshot of childrenSnapshots) {
+        childQftdsMap.set(snapshot.userId, (childQftdsMap.get(snapshot.userId) || 0) + snapshot.qftds);
+      }
+
       const comissaoEquipeCents = childrenHouseData.reduce((sum, data) => {
         const userCpaCents = houseData ? Math.round(Number(houseData.cpa) * 100) : 0;
         const childCpaCents = Math.round(Number(data.cpa) * 100);
         const cpaDifferenceCents = Math.max(0, userCpaCents - childCpaCents);
-        return sum + cpaDifferenceCents * data.qftds;
+        const childQftds = childQftdsMap.get(data.userId) || 0;
+        return sum + cpaDifferenceCents * childQftds;
       }, 0);
       comissaoEquipe = comissaoEquipeCents / 100;
     }

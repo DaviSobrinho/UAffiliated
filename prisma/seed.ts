@@ -16,9 +16,12 @@ async function generateSnapshots(
     const date = new Date(now);
     date.setDate(now.getDate() - i);
 
-    const registros = Math.max(1, Math.round(2 + Math.random() * 4 + (days - i) * 0.05));
-    const ftds = Math.min(registros, Math.max(0, Math.round(registros * (0.5 + Math.random() * 0.3))));
-    const qftds = Math.min(ftds, Math.max(0, Math.round(ftds * (0.7 + Math.random() * 0.25))));
+    // Deterministic, repeating pattern based on day of month
+    const dayOfMonth = date.getDate();
+    const registros = 8 + (dayOfMonth % 5);
+    const ftds = Math.max(1, Math.round(registros * 0.75));
+    const qftds = Math.max(1, Math.round(ftds * 0.8));
+
     // Use integer arithmetic for revenue: cpaCents * qftds / 100
     const cpaCents = Math.round(cpa * 100);
     const revenueCents = cpaCents * qftds;

@@ -82,7 +82,7 @@ export default function DashboardPage() {
         if (selectedHouse && user?.id) {
             fetchHouseData();
         }
-    }, [selectedHouse, user?.id, viewingUser]);
+    }, [selectedHouse, user?.id, viewingUser, timeframe]);
 
     useEffect(() => {
         if (refreshCooldown > 0) {
@@ -148,7 +148,7 @@ export default function DashboardPage() {
 
             if (viewingUser) {
                 // View-as mode: fetch data for the selected user
-                const viewAsRes = await fetch(`/api/users/view-as/${viewingUser.id}?houseId=${selectedHouse}`);
+                const viewAsRes = await fetch(`/api/users/view-as/${viewingUser.id}?houseId=${selectedHouse}&timeframe=${timeframe}`);
 
                 if (viewAsRes.ok) {
                     const data = await viewAsRes.json();
@@ -175,7 +175,7 @@ export default function DashboardPage() {
                 // Normal mode: fetch logged-in user's data
                 const [houseDataRes, performanceRes, userRes] = await Promise.all([
                     fetch(`/api/users/me/house-data?houseId=${selectedHouse}`),
-                    fetch(`/api/users/me/performance-summary?houseId=${selectedHouse}`),
+                    fetch(`/api/users/me/performance-summary?houseId=${selectedHouse}&timeframe=${timeframe}`),
                     fetch(`/api/users/me`),
                 ]);
 
