@@ -32,7 +32,7 @@ export default function RegisterPage() {
     }
   }, [searchParams]);
 
-  const handleSubmit = async (e: any) => {
+  const handleSubmit = async (e: React.SyntheticEvent) => {
     e.preventDefault();
     setError("");
 

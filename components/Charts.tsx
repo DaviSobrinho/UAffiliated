@@ -51,7 +51,7 @@ export function CommissionChart({ data }: CommissionChartProps) {
           <Tooltip
             contentStyle={{ backgroundColor: "#1f2937", border: `1px solid ${theme.colors.primary}`, borderRadius: "6px" }}
             labelStyle={{ color: "#fff" }}
-            formatter={(value: any) => `R$ ${value.toLocaleString("pt-BR")}`}
+            formatter={(value: unknown) => typeof value === "number" ? `R$ ${value.toLocaleString("pt-BR")}` : ""}
           />
           <Line
             type="monotone"
@@ -94,7 +94,7 @@ export function ComparativeChart({ current, previous }: ComparativeChartProps) {
           <Tooltip
             contentStyle={{ backgroundColor: "#1f2937", border: `1px solid ${theme.colors.primary}`, borderRadius: "6px" }}
             labelStyle={{ color: "#fff" }}
-            formatter={(value: any) => `R$ ${value.toLocaleString("pt-BR")}`}
+            formatter={(value: unknown) => typeof value === "number" ? `R$ ${value.toLocaleString("pt-BR")}` : ""}
           />
           <Bar dataKey="value" fill={theme.colors.primary} radius={[8, 8, 0, 0]} />
         </BarChart>
@@ -148,8 +148,8 @@ export function FunnelChart({ registros, ftds, qftds }: FunnelChartProps) {
           <Tooltip
             contentStyle={{ backgroundColor: "#1f2937", border: `1px solid ${theme.colors.primary}`, borderRadius: "6px" }}
             labelStyle={{ color: "#fff" }}
-            formatter={(value: any) => `${value}`}
-            labelFormatter={(label: any) => `${label}`}
+            formatter={(value: unknown) => `${value}`}
+            labelFormatter={(label: unknown) => `${label}`}
           />
         </PieChart>
       </ResponsiveContainer>

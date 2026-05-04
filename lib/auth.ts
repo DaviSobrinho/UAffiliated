@@ -11,13 +11,13 @@ export async function comparePassword(password: string, hash: string) {
   return bcrypt.compare(password, hash);
 }
 
-export function generateToken(userId: string, email: string) {
-  return jwt.sign({ id: userId, email }, JWT_SECRET, { expiresIn: "7d" });
+export function generateToken(userId: string, email: string, role: string = "USER") {
+  return jwt.sign({ id: userId, email, role }, JWT_SECRET, { expiresIn: "7d" });
 }
 
 export function verifyToken(token: string) {
   try {
-    return jwt.verify(token, JWT_SECRET) as { id: string; email: string };
+    return jwt.verify(token, JWT_SECRET) as { id: string; email: string; role: string };
   } catch {
     return null;
   }

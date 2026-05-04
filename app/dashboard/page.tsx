@@ -36,7 +36,7 @@ interface UserHouseData {
     qftds: number;
 }
 
-const formatCPA = (value: any): string => {
+const formatCPA = (value: number | string | null | undefined): string => {
     if (!value) return "R$ 0,00";
     const num = typeof value === "string" ? parseFloat(value) : value;
     return `R$ ${num.toFixed(2).replace(".", ",")}`;

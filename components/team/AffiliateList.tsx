@@ -39,12 +39,12 @@ export default function AffiliateList({ affiliates, houseId, parentCpa, onSetCpa
     );
 
     filtered.sort((a, b) => {
-      let aVal: any = a[sortField];
-      let bVal: any = b[sortField];
+      let aVal: string | number = a[sortField as keyof Affiliate] as string | number || "";
+      let bVal: string | number = b[sortField as keyof Affiliate] as string | number || "";
 
       if (sortField === "cpa") {
-        aVal = a.cpa || 0;
-        bVal = b.cpa || 0;
+        aVal = a.cpa ?? 0;
+        bVal = b.cpa ?? 0;
       }
 
       if (aVal < bVal) return sortOrder === "asc" ? -1 : 1;

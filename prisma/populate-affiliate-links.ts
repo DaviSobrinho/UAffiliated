@@ -60,8 +60,8 @@ async function main() {
           });
 
           console.log(`✓ Dados criados para ${user.name} - ${house.name}`);
-        } catch (error: any) {
-          if (error.code === "P2002" && error.meta?.target?.includes("affiliateLink")) {
+        } catch (error: unknown) {
+          if (error instanceof Error && "code" in error && error.code === "P2002" && "meta" in error && typeof error.meta === "object" && error.meta !== null && "target" in error.meta && Array.isArray(error.meta.target) && error.meta.target.includes("affiliateLink")) {
             console.log(`⚠️  Link de afiliado já existe para ${user.name} - ${house.name}`);
           } else {
             throw error;

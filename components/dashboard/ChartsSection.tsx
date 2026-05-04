@@ -64,7 +64,7 @@ export default function ChartsSection({ houseId, timeframe, affiliateId, viewing
         </>
       ) : (
         <>
-          <CommissionChart data={chartsData.timeline.map((t: any) => ({ date: t.date, value: t.revenue }))} />
+          <CommissionChart data={chartsData.timeline.map((t: { date: string; revenue: number }) => ({ date: t.date, value: t.revenue }))} />
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
             <ComparativeChart
               current={chartsData.comparison.current}

@@ -99,10 +99,10 @@ export async function POST(
     });
 
     return NextResponse.json({ houseData }, { status: 201 });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error(error);
 
-    if (error.code === "P2002") {
+    if (error instanceof Error && "code" in error && error.code === "P2002") {
       return NextResponse.json(
         { error: "Dados já existem para este usuário e casa" },
         { status: 409 }
@@ -163,10 +163,10 @@ export async function PUT(
     });
 
     return NextResponse.json({ houseData }, { status: 200 });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error(error);
 
-    if (error.code === "P2025") {
+    if (error instanceof Error && "code" in error && error.code === "P2025") {
       return NextResponse.json(
         { error: "Dados não encontrados" },
         { status: 404 }

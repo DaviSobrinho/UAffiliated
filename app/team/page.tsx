@@ -13,7 +13,7 @@ import { useHouse } from "@/context/HouseContext";
 import { SkeletonBox, SkeletonLine } from "@/components/Skeleton";
 import { useState, useEffect } from "react";
 
-const formatCPA = (value: any): string => {
+const formatCPA = (value: number | string | null | undefined): string => {
   if (!value) return "R$ 0,00";
   const num = typeof value === "string" ? Number.parseFloat(value) : value;
   return `R$ ${num.toFixed(2).replace(".", ",")}`;
