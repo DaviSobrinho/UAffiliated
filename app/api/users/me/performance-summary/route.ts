@@ -11,7 +11,7 @@ async function getAllDescendants(userId: string): Promise<string[]> {
   const queue = [userId];
 
   while (queue.length > 0) {
-    const currentId = queue.shift()!;
+    const currentId = queue.shift();
 
     if (visited.has(currentId)) continue;
     visited.add(currentId);
@@ -28,6 +28,16 @@ async function getAllDescendants(userId: string): Promise<string[]> {
   }
 
   return descendants;
+}
+
+// Get direct children IDs
+async function getDirectChildren(userId: string): Promise<string[]> {
+  const children = await prisma.user.findMany({
+    where: { affiliateParentId: userId },
+    select: { id: true },
+  });
+
+  return children.map((c) => c.id);
 }
 
 export async function GET(request: NextRequest) {
@@ -94,41 +104,52 @@ export async function GET(request: NextRequest) {
     }, 0);
     const meuRev = meuRevCents / 100;
 
-    // Get ALL descendants (entire tree) for commission calculation
-    const descendantIds = await getAllDescendants(decoded.id);
+    // Get DIRECT CHILDREN only
+    const directChildrenIds = await getDirectChildren(decoded.id);
 
-    // Get house data for all descendants
-    const descendantHouseData = await prisma.userHouseData.findMany({
-      where: {
-        userId: { in: descendantIds },
-        houseId,
-      },
-    });
+    let comissaoEquipe = 0;
+    if (directChildrenIds.length > 0) {
+      // Get house data for direct children
+      const directChildrenHouseData = await prisma.userHouseData.findMany({
+        where: {
+          userId: { in: directChildrenIds },
+          houseId,
+        },
+      });
 
-    // Get snapshots for all descendants in the selected timeframe
-    const descendantSnapshots = await prisma.dailySnapshot.findMany({
-      where: {
-        userId: { in: descendantIds },
-        houseId,
-        date: { gte: periodStart },
-      },
-    });
+      // For each direct child, calculate total QFTDS of child + all its descendants
+      const comissaoEquipeCents = await Promise.all(
+        directChildrenIds.map(async (childId) => {
+          const childHouseData = directChildrenHouseData.find((d) => d.userId === childId);
+          if (!childHouseData) return 0;
 
-    const descendantQftdsMap = new Map<string, number>();
-    for (const snapshot of descendantSnapshots) {
-      descendantQftdsMap.set(snapshot.userId, (descendantQftdsMap.get(snapshot.userId) || 0) + snapshot.qftds);
+          // Get all descendants of this child
+          const childDescendants = await getAllDescendants(childId);
+          const allInSubtree = [childId, ...childDescendants];
+
+          // Get snapshots for child + all its descendants in selected timeframe
+          const subtreeSnapshots = await prisma.dailySnapshot.findMany({
+            where: {
+              userId: { in: allInSubtree },
+              houseId,
+              date: { gte: periodStart },
+            },
+          });
+
+          // Sum QFTDS of entire subtree
+          const subtreeQftds = subtreeSnapshots.reduce((sum, snap) => sum + snap.qftds, 0);
+
+          // Calculate commission: (My CPA - Child CPA) × Total QFTDS of subtree
+          const userCpaCents = userHouseData ? Math.round(Number(userHouseData.cpa) * 100) : 0;
+          const childCpaCents = Math.round(Number(childHouseData.cpa) * 100);
+          const cpaDifferenceCents = Math.max(0, userCpaCents - childCpaCents);
+
+          return cpaDifferenceCents * subtreeQftds;
+        })
+      );
+
+      comissaoEquipe = (comissaoEquipeCents.reduce((a, b) => a + b, 0)) / 100;
     }
-
-    // Calculate commission from ALL descendants (entire tree) using integer arithmetic (cents)
-    // comissaoEquipe = Σ(Meu CPA - CPA de cada descendente) × QFTDS de cada descendente
-    const comissaoEquipeCents = descendantHouseData.reduce((sum, data) => {
-      const userCpaCents = userHouseData ? Math.round(Number(userHouseData.cpa) * 100) : 0;
-      const descendantCpaCents = Math.round(Number(data.cpa) * 100);
-      const cpaDifferenceCents = Math.max(0, userCpaCents - descendantCpaCents);
-      const descendantQftds = descendantQftdsMap.get(data.userId) || 0;
-      return sum + cpaDifferenceCents * descendantQftds;
-    }, 0);
-    const comissaoEquipe = comissaoEquipeCents / 100;
 
     const totalProprio = meuRev + comissaoEquipe;
 
