@@ -94,7 +94,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     // Calculate meuRev (own revenue)
     const meuRev = houseData ? Number(houseData.cpa) * houseData.qftds : 0;
 
-    // Get direct children and calculate comissaoEquipe
+    // Get direct children and calculate comissaoEquipe (difference in CPA)
     const directChildrenIds = await getDirectChildren(userId);
 
     let comissaoEquipe = 0;
@@ -107,7 +107,10 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       });
 
       comissaoEquipe = childrenHouseData.reduce((sum, data) => {
-        return sum + Number(data.cpa) * data.qftds;
+        const userCpa = houseData ? Number(houseData.cpa) : 0;
+        const childCpa = Number(data.cpa);
+        const cpaDifference = Math.max(0, userCpa - childCpa);
+        return sum + cpaDifference * data.qftds;
       }, 0);
     }
 
