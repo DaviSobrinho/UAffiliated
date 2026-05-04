@@ -4,6 +4,69 @@ import { verifyToken } from "@/lib/auth";
 
 const prisma = new PrismaClient();
 
+// Calculate user level in hierarchy
+async function getUserLevel(userId: string): Promise<number> {
+  let level = 1;
+  let currentId: string | null = userId;
+
+  while (currentId) {
+    const user = await prisma.user.findUnique({
+      where: { id: currentId },
+      select: { affiliateParentId: true },
+    });
+
+    if (!user || !user.affiliateParentId) break;
+
+    currentId = user.affiliateParentId;
+    level++;
+  }
+
+  return level;
+}
+
+// Get all descendants with BFS
+async function getAllDescendantsWithData(
+  userId: string,
+  houseId: string
+): Promise<any[]> {
+  const descendants = [];
+  const visited = new Set<string>();
+  const queue = [userId];
+
+  while (queue.length > 0) {
+    const currentId = queue.shift();
+
+    if (visited.has(currentId)) continue;
+    visited.add(currentId);
+
+    const children = await prisma.user.findMany({
+      where: { affiliateParentId: currentId },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        createdAt: true,
+        userHouseData: {
+          where: { houseId },
+          select: {
+            cpa: true,
+            qftds: true,
+            cpaEditedOnce: true,
+          },
+        },
+      },
+    });
+
+    for (const child of children) {
+      const level = await getUserLevel(child.id);
+      descendants.push({ ...child, level });
+      queue.push(child.id);
+    }
+  }
+
+  return descendants;
+}
+
 function formatDate(date: Date): string {
   return new Date(date).toLocaleDateString("pt-BR");
 }
@@ -11,7 +74,6 @@ function formatDate(date: Date): string {
 function formatCPA(value: number): string {
   return `R$ ${value.toFixed(2).replace(".", ",")}`;
 }
-
 
 export async function GET(request: NextRequest) {
   try {
@@ -36,36 +98,10 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Fetch direct children only
-    const user = await prisma.user.findUnique({
-      where: { id: decoded.id },
-      include: {
-        affiliateChildren: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            createdAt: true,
-            userHouseData: {
-              where: { houseId },
-              select: {
-                cpa: true,
-                qftds: true,
-                cpaEditedOnce: true,
-              },
-            },
-          },
-        },
-      },
-    });
+    // Fetch all descendants with their levels
+    const allDescendants = await getAllDescendantsWithData(decoded.id, houseId);
 
-    if (!user) {
-      return NextResponse.json({ error: "Usuário não encontrado" }, { status: 404 });
-    }
-
-    const descendants = user.affiliateChildren;
-
-    const affiliates = descendants
+    const affiliates = allDescendants
       .map((child) => {
         const houseData = child.userHouseData[0];
         const cpaBigDecimal = houseData ? Number(houseData.cpa) : 0;
@@ -75,6 +111,7 @@ export async function GET(request: NextRequest) {
           id: child.id,
           name: child.name,
           email: child.email,
+          level: child.level,
           commission: formatCPA(commission),
           linkedDate: formatDate(child.createdAt),
           cpa: houseData ? cpaBigDecimal : null,
