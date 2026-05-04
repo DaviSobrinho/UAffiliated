@@ -9,6 +9,8 @@ import CommissionStructureInfo from "@/components/team/CommissionStructureInfo";
 import AffiliateList from "@/components/team/AffiliateList";
 import SubAffiliateCpaModal from "@/components/team/SubAffiliateCpaModal";
 import HouseSelector from "@/components/HouseSelector";
+import TimeframeSelector from "@/components/TimeframeSelector";
+import AffiliateFilter from "@/components/dashboard/AffiliateFilter";
 import { useHouse } from "@/context/HouseContext";
 import { SkeletonBox, SkeletonLine } from "@/components/Skeleton";
 import { useState, useEffect } from "react";
@@ -52,10 +54,17 @@ export default function TeamPage() {
   const [user, setUser] = useState<User | null>(null);
   const [houseData, setHouseData] = useState<UserHouseData | null>(null);
   const [loading, setLoading] = useState(false);
+  const [teamLoading, setTeamLoading] = useState(false);
   const [affiliates, setAffiliates] = useState<Affiliate[]>([]);
   const [referralLink, setReferralLink] = useState("");
   const [selectedAffiliate, setSelectedAffiliate] = useState<Affiliate | null>(null);
   const [selectedAffiliateCpaLimit, setSelectedAffiliateCpaLimit] = useState<number | null>(null);
+  const [timeframe, setTimeframe] = useState("7d");
+  const [selectedAffiliateId, setSelectedAffiliateId] = useState("all");
+  const [teamRegistros, setTeamRegistros] = useState(0);
+  const [teamFtds, setTeamFtds] = useState(0);
+  const [teamQftds, setTeamQftds] = useState(0);
+  const [teamComissao, setTeamComissao] = useState("R$ 0,00");
 
   useEffect(() => {
     const storedUser = localStorage.getItem("user");
@@ -71,8 +80,9 @@ export default function TeamPage() {
   useEffect(() => {
     if (selectedHouse && user?.id) {
       fetchHouseData();
+      fetchTeamPerformance();
     }
-  }, [selectedHouse, user?.id]);
+  }, [selectedHouse, user?.id, timeframe, selectedAffiliateId]);
 
   const fetchHouseData = async () => {
     try {
@@ -117,6 +127,35 @@ export default function TeamPage() {
     fetchHouseData();
   };
 
+  const fetchTeamPerformance = async () => {
+    try {
+      setTeamLoading(true);
+      const res = await fetch(
+        `/api/users/me/charts?houseId=${selectedHouse}&affiliateId=${selectedAffiliateId}&timeframe=${timeframe}`
+      );
+      if (res.ok) {
+        const data = await res.json();
+        setTeamRegistros(data.funnel.registros);
+        setTeamFtds(data.funnel.ftds);
+        setTeamQftds(data.funnel.qftds);
+        setTeamComissao(formatCPA(data.commission));
+      } else {
+        setTeamRegistros(0);
+        setTeamFtds(0);
+        setTeamQftds(0);
+        setTeamComissao("R$ 0,00");
+      }
+    } catch (err) {
+      console.error("Error fetching team performance:", err);
+      setTeamRegistros(0);
+      setTeamFtds(0);
+      setTeamQftds(0);
+      setTeamComissao("R$ 0,00");
+    } finally {
+      setTeamLoading(false);
+    }
+  };
+
 
   return (
     <MainLayout>
@@ -136,18 +175,37 @@ export default function TeamPage() {
           <TeamAgreementCard cpa={formatCPA(houseData?.cpa)} />
         )}
 
+        {/* Team Performance Filters */}
+        {!loading && (
+          <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+            <div className="w-full sm:w-64">
+              <TimeframeSelector value={timeframe} onChange={setTimeframe} />
+            </div>
+            <div className="flex items-center gap-2 w-full sm:w-auto">
+              <span className="text-sm text-zinc-400 whitespace-nowrap">Filtrar por:</span>
+              <div className="w-full sm:w-64">
+                <AffiliateFilter
+                  houseId={selectedHouse}
+                  value={selectedAffiliateId}
+                  onChange={setSelectedAffiliateId}
+                />
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Team Performance Section */}
-        {loading ? (
+        {teamLoading ? (
           <div className="space-y-3">
             <SkeletonLine width="20%" height="1.5rem" />
             <SkeletonBox height="10rem" />
           </div>
         ) : (
           <TeamPerformance
-            registros={houseData?.registros || 0}
-            ftds={houseData?.ftds || 0}
-            qftds={houseData?.qftds || 0}
-            comissao="R$ 0,00"
+            registros={teamRegistros}
+            ftds={teamFtds}
+            qftds={teamQftds}
+            comissao={teamComissao}
           />
         )}
 
