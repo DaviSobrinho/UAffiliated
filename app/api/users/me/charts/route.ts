@@ -161,7 +161,31 @@ export async function GET(request: NextRequest) {
       },
     });
 
-    // Build timeline: group by date, sum revenue
+    // Fetch user's CPA for commission calculation
+    const userHouseData = await prisma.userHouseData.findUnique({
+      where: {
+        userId_houseId: {
+          userId: decoded.id,
+          houseId,
+        },
+      },
+    });
+
+    const userCpaCents = userHouseData ? Math.round(Number(userHouseData.cpa) * 100) : 0;
+
+    // Fetch CPAs for all target users (to calculate commission using CPA difference)
+    const targetUserHouseData = await prisma.userHouseData.findMany({
+      where: {
+        userId: { in: targetIds },
+        houseId,
+      },
+    });
+
+    const cpaByCpnserId = new Map(
+      targetUserHouseData.map((data) => [data.userId, Math.round(Number(data.cpa) * 100)])
+    );
+
+    // Build timeline: group by date, calculate commission using CPA difference
     const timelineMap = new Map<string, number>();
     for (let i = days; i >= 0; i--) {
       const date = new Date(now);
@@ -173,7 +197,13 @@ export async function GET(request: NextRequest) {
     for (const snapshot of currentSnapshots) {
       const dateStr = new Date(snapshot.date).toISOString().slice(0, 10);
       const current = timelineMap.get(dateStr) || 0;
-      timelineMap.set(dateStr, current + Number(snapshot.revenue));
+
+      // Calculate commission using CPA difference: (My CPA - Their CPA) × QFTDS
+      const snapshotUserCpaCents = cpaByCpnserId.get(snapshot.userId) || 0;
+      const cpaDifferenceCents = Math.max(0, userCpaCents - snapshotUserCpaCents);
+      const commissionCents = cpaDifferenceCents * snapshot.qftds;
+
+      timelineMap.set(dateStr, current + commissionCents / 100);
     }
 
     const timeline = Array.from(timelineMap, ([date, revenue]) => ({ date, revenue }));
@@ -188,20 +218,33 @@ export async function GET(request: NextRequest) {
       { registros: 0, ftds: 0, qftds: 0 }
     );
 
-    // Build comparison: sum revenue using integer arithmetic (cents)
-    const currentMonthRevenueCents = currentMonthSnapshots.reduce((acc, s) => acc + Math.round(Number(s.revenue) * 100), 0);
-    const prevMonthRevenueCents = prevMonthSnapshots.reduce((acc, s) => acc + Math.round(Number(s.revenue) * 100), 0);
+    // Build comparison: calculate commission using CPA difference
+    const currentMonthCommissionCents = currentMonthSnapshots.reduce((acc, s) => {
+      const snapshotUserCpaCents = cpaByCpnserId.get(s.userId) || 0;
+      const cpaDifferenceCents = Math.max(0, userCpaCents - snapshotUserCpaCents);
+      return acc + cpaDifferenceCents * s.qftds;
+    }, 0);
 
-    // Calculate total commission from current period using integer arithmetic
-    const totalCommissionCents = currentSnapshots.reduce((acc, s) => acc + Math.round(Number(s.revenue) * 100), 0);
+    const prevMonthCommissionCents = prevMonthSnapshots.reduce((acc, s) => {
+      const snapshotUserCpaCents = cpaByCpnserId.get(s.userId) || 0;
+      const cpaDifferenceCents = Math.max(0, userCpaCents - snapshotUserCpaCents);
+      return acc + cpaDifferenceCents * s.qftds;
+    }, 0);
+
+    // Calculate total commission from current period using CPA difference formula
+    const totalCommissionCents = currentSnapshots.reduce((acc, s) => {
+      const snapshotUserCpaCents = cpaByCpnserId.get(s.userId) || 0;
+      const cpaDifferenceCents = Math.max(0, userCpaCents - snapshotUserCpaCents);
+      return acc + cpaDifferenceCents * s.qftds;
+    }, 0);
 
     return NextResponse.json({
       timeline,
       funnel,
       commission: totalCommissionCents / 100,
       comparison: {
-        current: currentMonthRevenueCents / 100,
-        previous: prevMonthRevenueCents / 100,
+        current: currentMonthCommissionCents / 100,
+        previous: prevMonthCommissionCents / 100,
       },
     });
   } catch (error) {
