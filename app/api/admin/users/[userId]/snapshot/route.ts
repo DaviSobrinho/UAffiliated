@@ -9,7 +9,8 @@ async function isAdmin(token: string): Promise<boolean> {
   return decoded?.role === "ADMIN";
 }
 
-export async function POST(request: NextRequest, { params }: { params: { userId: string } }) {
+export async function POST(request: NextRequest, { params }: { params: Promise<{ userId: string }> }) {
+  const { userId } = await params;
   try {
     const token = request.cookies.get("auth")?.value;
 
@@ -21,7 +22,6 @@ export async function POST(request: NextRequest, { params }: { params: { userId:
       return NextResponse.json({ error: "Apenas admin pode realizar esta ação" }, { status: 403 });
     }
 
-    const { userId } = params;
     const { houseId, date, registros, ftds, qftds } = await request.json();
 
     if (!houseId || !date) {

@@ -41,8 +41,9 @@ async function getDirectChildren(userId: string): Promise<string[]> {
   return children.map((c) => c.id);
 }
 
-export async function GET(request: NextRequest, { params }: { params: { userId: string } }) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ userId: string }> }) {
   try {
+    const { userId } = await params;
     const token = request.cookies.get("auth")?.value;
 
     if (!token) {
@@ -60,8 +61,6 @@ export async function GET(request: NextRequest, { params }: { params: { userId: 
     if (!houseId) {
       return NextResponse.json({ error: "houseId é obrigatório" }, { status: 400 });
     }
-
-    const { userId } = params;
 
     // Permission check
     const isAdmin = decoded.role === "ADMIN";
