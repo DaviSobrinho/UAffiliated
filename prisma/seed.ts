@@ -16,13 +16,11 @@ async function generateSnapshots(
     const date = new Date(now);
     date.setDate(now.getDate() - i);
 
-    // Deterministic, repeating pattern based on day of month
+    // Deterministic, small QFTDS pattern (1-4)
     const dayOfMonth = date.getDate();
-    const registros = 8 + (dayOfMonth % 5);
-    const ftds = Math.max(1, Math.round(registros * 0.75));
-    const qftds = Math.max(1, Math.round(ftds * 0.8));
+    const qftds = 1 + (dayOfMonth % 4); // 1-4
 
-    // Use integer arithmetic for revenue: cpaCents * qftds / 100
+    // Use integer arithmetic for revenue
     const cpaCents = Math.round(cpa * 100);
     const revenueCents = cpaCents * qftds;
     const revenue = revenueCents / 100;
@@ -31,8 +29,8 @@ async function generateSnapshots(
       userId,
       houseId,
       date: new Date(date.getFullYear(), date.getMonth(), date.getDate()),
-      registros,
-      ftds,
+      registros: qftds,
+      ftds: qftds,
       qftds,
       revenue,
     });
@@ -47,71 +45,104 @@ async function main() {
   await prisma.userHouseData.deleteMany();
   await prisma.user.deleteMany();
 
-  const hashedAdminPassword = await bcrypt.hash("admin123", 10);
-  const hashedUserPassword = await bcrypt.hash("user123", 10);
-  const hashedSubUserPassword = await bcrypt.hash("subuser123", 10);
+  const hashedPassword = await bcrypt.hash("user123", 10);
 
-  // Create test users with affiliate hierarchy
-  const admin = await prisma.user.create({
+  // Create 5-level hierarchy
+  // N1 (root admin)
+  const n1 = await prisma.user.create({
     data: {
       email: "admin@example.com",
-      password: hashedAdminPassword,
-      name: "Admin User",
+      password: await bcrypt.hash("admin123", 10),
+      name: "Admin (N1)",
       role: "ADMIN",
     },
   });
 
-  const user = await prisma.user.create({
+  // N2 (direct children of admin)
+  const n2_a = await prisma.user.create({
     data: {
       email: "user@example.com",
-      password: hashedUserPassword,
-      name: "Regular User",
+      password: hashedPassword,
+      name: "User A (N2)",
       role: "USER",
-      affiliateParentId: admin.id,
+      affiliateParentId: n1.id,
     },
   });
 
-  const user2 = await prisma.user.create({
+  const n2_b = await prisma.user.create({
     data: {
       email: "user2@example.com",
-      password: hashedUserPassword,
-      name: "Second User",
+      password: hashedPassword,
+      name: "User B (N2)",
       role: "USER",
-      affiliateParentId: admin.id,
+      affiliateParentId: n1.id,
     },
   });
 
-  const subuser = await prisma.user.create({
+  // N3 (children of N2)
+  const n3_a = await prisma.user.create({
     data: {
-      email: "subuser@example.com",
-      password: hashedSubUserPassword,
-      name: "Sub User",
+      email: "user-a1@example.com",
+      password: hashedPassword,
+      name: "User A1 (N3)",
       role: "USER",
-      affiliateParentId: user.id,
+      affiliateParentId: n2_a.id,
     },
   });
 
-  const subuser2 = await prisma.user.create({
+  const n3_b = await prisma.user.create({
     data: {
-      email: "subuser2@example.com",
-      password: hashedSubUserPassword,
-      name: "Second Sub User",
+      email: "user-b1@example.com",
+      password: hashedPassword,
+      name: "User B1 (N3)",
       role: "USER",
-      affiliateParentId: user2.id,
+      affiliateParentId: n2_b.id,
     },
   });
 
-  const deepUser = await prisma.user.create({
+  // N4 (children of N3)
+  const n4_a = await prisma.user.create({
     data: {
-      email: "deep@example.com",
-      password: hashedUserPassword,
-      name: "Deep User",
+      email: "user-a1-1@example.com",
+      password: hashedPassword,
+      name: "User A1-1 (N4)",
       role: "USER",
-      affiliateParentId: subuser.id,
+      affiliateParentId: n3_a.id,
     },
   });
 
-  // Create UserHouseData for all users
+  const n4_b = await prisma.user.create({
+    data: {
+      email: "user-b1-1@example.com",
+      password: hashedPassword,
+      name: "User B1-1 (N4)",
+      role: "USER",
+      affiliateParentId: n3_b.id,
+    },
+  });
+
+  // N5 (children of N4)
+  const n5_a = await prisma.user.create({
+    data: {
+      email: "user-a1-1-1@example.com",
+      password: hashedPassword,
+      name: "User A1-1-1 (N5)",
+      role: "USER",
+      affiliateParentId: n4_a.id,
+    },
+  });
+
+  const n5_b = await prisma.user.create({
+    data: {
+      email: "user-b1-1-1@example.com",
+      password: hashedPassword,
+      name: "User B1-1-1 (N5)",
+      role: "USER",
+      affiliateParentId: n4_b.id,
+    },
+  });
+
+  // Create UserHouseData for all users with CPAs that decrease by level
   const createHouseData = async (userId: string, betanoCpa: number, novibetCpa: number) => {
     return [
       await prisma.userHouseData.create({
@@ -141,21 +172,27 @@ async function main() {
     ];
   };
 
-  // Create house data for each user
-  await createHouseData(admin.id, 200, 150);
-  await createHouseData(user.id, 150, 100);
-  await createHouseData(user2.id, 150, 100);
-  await createHouseData(subuser.id, 80, 50);
-  await createHouseData(subuser2.id, 80, 50);
-  await createHouseData(deepUser.id, 40, 25);
+  // CPAs decrease by level (200 → 150 → 100 → 50 → 25)
+  await createHouseData(n1.id, 200, 150);
+  await createHouseData(n2_a.id, 150, 120);
+  await createHouseData(n2_b.id, 150, 120);
+  await createHouseData(n3_a.id, 100, 80);
+  await createHouseData(n3_b.id, 100, 80);
+  await createHouseData(n4_a.id, 50, 40);
+  await createHouseData(n4_b.id, 50, 40);
+  await createHouseData(n5_a.id, 25, 20);
+  await createHouseData(n5_b.id, 25, 20);
 
-  // Generate and create snapshots for each user/house combination
+  // Generate and create snapshots for each user
   const users = [
-    { id: user.id, cpaB: 150, cpaN: 100 },
-    { id: user2.id, cpaB: 150, cpaN: 100 },
-    { id: subuser.id, cpaB: 80, cpaN: 50 },
-    { id: subuser2.id, cpaB: 80, cpaN: 50 },
-    { id: deepUser.id, cpaB: 40, cpaN: 25 },
+    { id: n2_a.id, cpaB: 150, cpaN: 120 },
+    { id: n2_b.id, cpaB: 150, cpaN: 120 },
+    { id: n3_a.id, cpaB: 100, cpaN: 80 },
+    { id: n3_b.id, cpaB: 100, cpaN: 80 },
+    { id: n4_a.id, cpaB: 50, cpaN: 40 },
+    { id: n4_b.id, cpaB: 50, cpaN: 40 },
+    { id: n5_a.id, cpaB: 25, cpaN: 20 },
+    { id: n5_b.id, cpaB: 25, cpaN: 20 },
   ];
 
   for (const u of users) {
@@ -203,9 +240,13 @@ async function main() {
   }
 
   console.log("✅ Seed completed successfully!");
-  console.log("Users created: admin, user, user2, subuser, subuser2, deepUser");
-  console.log("Affiliate tree: admin → [user, user2] → [subuser, subuser2] → [deepUser]");
-  console.log("90 days of DailySnapshot data generated for all users across 2 houses");
+  console.log("5-level affiliate hierarchy created:");
+  console.log("N1: Admin User (CPA 200)");
+  console.log("N2: User A, User B (CPA 150)");
+  console.log("N3: User A1, User B1 (CPA 100)");
+  console.log("N4: User A1-1, User B1-1 (CPA 50)");
+  console.log("N5: User A1-1-1, User B1-1-1 (CPA 25)");
+  console.log("QFTDS: 1-4 per day (deterministic)");
 }
 
 main()

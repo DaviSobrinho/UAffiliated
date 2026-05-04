@@ -8,6 +8,7 @@ interface User {
   id: string;
   name: string;
   email: string;
+  level?: number;
 }
 
 interface UserSelectorProps {
@@ -160,7 +161,20 @@ export default function UserSelector({ value, onChange }: UserSelectorProps) {
                   borderColor: theme.colors.primary,
                 }}
               >
-                <div className="text-white font-medium">{user.name}</div>
+                <div className="flex items-center justify-between">
+                  <div className="text-white font-medium">{user.name}</div>
+                  {user.level && (
+                    <span
+                      className="text-xs font-semibold px-2 py-1 rounded"
+                      style={{
+                        backgroundColor: theme.colors.primary,
+                        color: "#000",
+                      }}
+                    >
+                      N{user.level}
+                    </span>
+                  )}
+                </div>
                 <div className="text-xs text-zinc-400">{user.email}</div>
               </button>
             ))

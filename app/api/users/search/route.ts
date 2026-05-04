@@ -11,7 +11,7 @@ async function getAllDescendants(userId: string): Promise<string[]> {
   const queue = [userId];
 
   while (queue.length > 0) {
-    const currentId = queue.shift()!;
+    const currentId = queue.shift();
 
     if (visited.has(currentId)) continue;
     visited.add(currentId);
@@ -28,6 +28,26 @@ async function getAllDescendants(userId: string): Promise<string[]> {
   }
 
   return descendants;
+}
+
+// Calculate user level in hierarchy
+async function getUserLevel(userId: string): Promise<number> {
+  let level = 1;
+  let currentId: string | null = userId;
+
+  while (currentId) {
+    const user = await prisma.user.findUnique({
+      where: { id: currentId },
+      select: { affiliateParentId: true },
+    });
+
+    if (!user || !user.affiliateParentId) break;
+
+    currentId = user.affiliateParentId;
+    level++;
+  }
+
+  return level;
 }
 
 export async function GET(request: NextRequest) {
@@ -51,7 +71,7 @@ export async function GET(request: NextRequest) {
 
     if (isAdmin) {
       // Admin: search all users
-      const users = await prisma.user.findMany({
+      const foundUsers = await prisma.user.findMany({
         where: {
           OR: [
             { name: { contains: q, mode: "insensitive" } },
@@ -62,7 +82,15 @@ export async function GET(request: NextRequest) {
         take: limit,
       });
 
-      return NextResponse.json({ users });
+      // Add level to each user
+      const usersWithLevel = await Promise.all(
+        foundUsers.map(async (user) => ({
+          ...user,
+          level: await getUserLevel(user.id),
+        }))
+      );
+
+      return NextResponse.json({ users: usersWithLevel });
     } else {
       // Regular user: get all descendants first
       const descendantIds = await getAllDescendants(decoded.id);
@@ -74,19 +102,18 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({ users: [] });
       }
 
-      // Filter by search query in-memory, then take limit
+      // Filter by search query and add levels
+      let foundUsers;
       if (q === "") {
         // No search query, return first `limit` descendants
-        const users = await prisma.user.findMany({
+        foundUsers = await prisma.user.findMany({
           where: { id: { in: otherDescendantIds } },
           select: { id: true, name: true, email: true },
           take: limit,
         });
-
-        return NextResponse.json({ users });
       } else {
         // Search query provided, filter
-        const users = await prisma.user.findMany({
+        foundUsers = await prisma.user.findMany({
           where: {
             id: { in: otherDescendantIds },
             OR: [{ name: { contains: q, mode: "insensitive" } }, { email: { contains: q, mode: "insensitive" } }],
@@ -94,9 +121,17 @@ export async function GET(request: NextRequest) {
           select: { id: true, name: true, email: true },
           take: limit,
         });
-
-        return NextResponse.json({ users });
       }
+
+      // Add level to each user
+      const usersWithLevel = await Promise.all(
+        foundUsers.map(async (user) => ({
+          ...user,
+          level: await getUserLevel(user.id),
+        }))
+      );
+
+      return NextResponse.json({ users: usersWithLevel });
     }
   } catch (error) {
     console.error(error);

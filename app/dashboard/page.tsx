@@ -5,6 +5,7 @@ import DashboardHeader from "@/components/dashboard/DashboardHeader";
 import BalanceCard from "@/components/cards/BalanceCard";
 import MinhaPerformance from "@/components/dashboard/MinhaPerformance";
 import PerformanceEquipe from "@/components/dashboard/PerformanceEquipe";
+import TeamAffiliatesTable from "@/components/dashboard/TeamAffiliatesTable";
 import ChartsSection from "@/components/dashboard/ChartsSection";
 import InfoBox from "@/components/dashboard/InfoBox";
 import TimeframeSelector from "@/components/TimeframeSelector";
@@ -379,12 +380,17 @@ export default function DashboardPage() {
                         <SkeletonBox height="10rem" />
                     </div>
                 ) : (
-                    <PerformanceEquipe
-                        registros={teamRegistros}
-                        ftds={teamFtds}
-                        qftds={teamQftds}
-                        comissao={teamComissao}
-                    />
+                    <>
+                        <PerformanceEquipe
+                            registros={teamRegistros}
+                            ftds={teamFtds}
+                            qftds={teamQftds}
+                            comissao={teamComissao}
+                        />
+                        {viewingUser && (
+                            <TeamAffiliatesTable selectedUserId={viewingUser.id} />
+                        )}
+                    </>
                 )}
 
                 {/* Charts Section */}
