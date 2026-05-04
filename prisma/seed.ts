@@ -19,7 +19,10 @@ async function generateSnapshots(
     const registros = Math.max(1, Math.round(2 + Math.random() * 4 + (days - i) * 0.05));
     const ftds = Math.min(registros, Math.max(0, Math.round(registros * (0.5 + Math.random() * 0.3))));
     const qftds = Math.min(ftds, Math.max(0, Math.round(ftds * (0.7 + Math.random() * 0.25))));
-    const revenue = qftds * cpa * (0.9 + Math.random() * 0.2);
+    // Use integer arithmetic for revenue: cpaCents * qftds / 100
+    const cpaCents = Math.round(cpa * 100);
+    const revenueCents = cpaCents * qftds;
+    const revenue = revenueCents / 100;
 
     snapshots.push({
       userId,
@@ -28,7 +31,7 @@ async function generateSnapshots(
       registros,
       ftds,
       qftds,
-      revenue: Math.round(revenue * 100) / 100,
+      revenue,
     });
   }
 
