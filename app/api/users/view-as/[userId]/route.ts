@@ -91,8 +91,9 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       },
     });
 
-    // Calculate meuRev (own revenue)
-    const meuRev = houseData ? Number(houseData.cpa) * houseData.qftds : 0;
+    // Calculate meuRev (own revenue) using integer arithmetic (cents)
+    const meuRevCents = houseData ? Math.round(Number(houseData.cpa) * 100) * houseData.qftds : 0;
+    const meuRev = meuRevCents / 100;
 
     // Get direct children and calculate comissaoEquipe (difference in CPA)
     const directChildrenIds = await getDirectChildren(userId);
@@ -106,12 +107,13 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
         },
       });
 
-      comissaoEquipe = childrenHouseData.reduce((sum, data) => {
-        const userCpa = houseData ? Number(houseData.cpa) : 0;
-        const childCpa = Number(data.cpa);
-        const cpaDifference = Math.max(0, userCpa - childCpa);
-        return sum + cpaDifference * data.qftds;
+      const comissaoEquipeCents = childrenHouseData.reduce((sum, data) => {
+        const userCpaCents = houseData ? Math.round(Number(houseData.cpa) * 100) : 0;
+        const childCpaCents = Math.round(Number(data.cpa) * 100);
+        const cpaDifferenceCents = Math.max(0, userCpaCents - childCpaCents);
+        return sum + cpaDifferenceCents * data.qftds;
       }, 0);
+      comissaoEquipe = comissaoEquipeCents / 100;
     }
 
     const totalProprio = meuRev + comissaoEquipe;

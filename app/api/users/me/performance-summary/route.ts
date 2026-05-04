@@ -37,10 +37,11 @@ export async function GET(request: NextRequest) {
       },
     });
 
-    // Calculate user's own revenue
-    const meuRev = userHouseData
-      ? Number(userHouseData.cpa) * userHouseData.qftds
+    // Calculate user's own revenue using integer arithmetic (cents)
+    const meuRevCents = userHouseData
+      ? Math.round(Number(userHouseData.cpa) * 100) * userHouseData.qftds
       : 0;
+    const meuRev = meuRevCents / 100;
 
     // Get only direct children (1st level)
     const directChildren = await prisma.user.findMany({
@@ -56,11 +57,14 @@ export async function GET(request: NextRequest) {
       },
     });
 
-    // Calculate commission from direct children (difference in CPA × their QFTDS)
-    const comissaoEquipe = directChildrenHouseData.reduce((sum, data) => {
-      const cpaDifference = userHouseData ? Number(userHouseData.cpa) - Number(data.cpa) : 0;
-      return sum + Math.max(0, cpaDifference) * data.qftds;
+    // Calculate commission from direct children using integer arithmetic (cents)
+    const comissaoEquipeCents = directChildrenHouseData.reduce((sum, data) => {
+      const userCpaCents = userHouseData ? Math.round(Number(userHouseData.cpa) * 100) : 0;
+      const childCpaCents = Math.round(Number(data.cpa) * 100);
+      const cpaDifferenceCents = Math.max(0, userCpaCents - childCpaCents);
+      return sum + cpaDifferenceCents * data.qftds;
     }, 0);
+    const comissaoEquipe = comissaoEquipeCents / 100;
 
     const totalProprio = meuRev + comissaoEquipe;
 

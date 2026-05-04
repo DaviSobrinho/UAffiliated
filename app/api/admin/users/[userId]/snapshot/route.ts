@@ -42,12 +42,15 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       return NextResponse.json({ error: "Dados de casa não encontrados para este usuário" }, { status: 404 });
     }
 
-    // Parse date and calculate revenue
+    // Parse date and calculate revenue using integer arithmetic (cents)
     const snapshotDate = new Date(date);
     snapshotDate.setHours(0, 0, 0, 0);
 
     const finalQftds = qftds !== undefined ? qftds : 0;
-    const revenue = Number(userHouseData.cpa) * finalQftds;
+    // Convert CPA to cents (integer), calculate, then convert back to decimal
+    const cpaCents = Math.round(Number(userHouseData.cpa) * 100);
+    const revenueCents = cpaCents * finalQftds;
+    const revenue = revenueCents / 100;
 
     // Upsert DailySnapshot
     const snapshot = await prisma.dailySnapshot.upsert({

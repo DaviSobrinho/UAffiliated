@@ -188,20 +188,20 @@ export async function GET(request: NextRequest) {
       { registros: 0, ftds: 0, qftds: 0 }
     );
 
-    // Build comparison: sum revenue for current and previous calendar months
-    const currentMonthRevenue = currentMonthSnapshots.reduce((acc, s) => acc + Number(s.revenue), 0);
-    const prevMonthRevenue = prevMonthSnapshots.reduce((acc, s) => acc + Number(s.revenue), 0);
+    // Build comparison: sum revenue using integer arithmetic (cents)
+    const currentMonthRevenueCents = currentMonthSnapshots.reduce((acc, s) => acc + Math.round(Number(s.revenue) * 100), 0);
+    const prevMonthRevenueCents = prevMonthSnapshots.reduce((acc, s) => acc + Math.round(Number(s.revenue) * 100), 0);
 
-    // Calculate total commission from current period
-    const totalCommission = currentSnapshots.reduce((acc, s) => acc + Number(s.revenue), 0);
+    // Calculate total commission from current period using integer arithmetic
+    const totalCommissionCents = currentSnapshots.reduce((acc, s) => acc + Math.round(Number(s.revenue) * 100), 0);
 
     return NextResponse.json({
       timeline,
       funnel,
-      commission: Math.round(totalCommission * 100) / 100,
+      commission: totalCommissionCents / 100,
       comparison: {
-        current: Math.round(currentMonthRevenue * 100) / 100,
-        previous: Math.round(prevMonthRevenue * 100) / 100,
+        current: currentMonthRevenueCents / 100,
+        previous: prevMonthRevenueCents / 100,
       },
     });
   } catch (error) {
