@@ -4,6 +4,32 @@ import { verifyToken } from "@/lib/auth";
 
 const prisma = new PrismaClient();
 
+// BFS to collect all descendant IDs
+async function getAllDescendants(userId: string): Promise<string[]> {
+  const descendants: string[] = [];
+  const visited = new Set<string>();
+  const queue = [userId];
+
+  while (queue.length > 0) {
+    const currentId = queue.shift()!;
+
+    if (visited.has(currentId)) continue;
+    visited.add(currentId);
+
+    const children = await prisma.user.findMany({
+      where: { affiliateParentId: currentId },
+      select: { id: true },
+    });
+
+    for (const child of children) {
+      descendants.push(child.id);
+      queue.push(child.id);
+    }
+  }
+
+  return descendants;
+}
+
 export async function GET(request: NextRequest) {
   try {
     const token = request.cookies.get("auth")?.value;
@@ -68,41 +94,39 @@ export async function GET(request: NextRequest) {
     }, 0);
     const meuRev = meuRevCents / 100;
 
-    // Get only direct children (1st level)
-    const directChildren = await prisma.user.findMany({
-      where: { affiliateParentId: decoded.id },
-      select: { id: true },
-    });
+    // Get ALL descendants (entire tree) for commission calculation
+    const descendantIds = await getAllDescendants(decoded.id);
 
-    // Get house data only for direct children
-    const directChildrenHouseData = await prisma.userHouseData.findMany({
+    // Get house data for all descendants
+    const descendantHouseData = await prisma.userHouseData.findMany({
       where: {
-        userId: { in: directChildren.map((c) => c.id) },
+        userId: { in: descendantIds },
         houseId,
       },
     });
 
-    // Get snapshots for direct children in the selected timeframe
-    const childrenSnapshots = await prisma.dailySnapshot.findMany({
+    // Get snapshots for all descendants in the selected timeframe
+    const descendantSnapshots = await prisma.dailySnapshot.findMany({
       where: {
-        userId: { in: directChildren.map((c) => c.id) },
+        userId: { in: descendantIds },
         houseId,
         date: { gte: periodStart },
       },
     });
 
-    const childQftdsMap = new Map<string, number>();
-    for (const snapshot of childrenSnapshots) {
-      childQftdsMap.set(snapshot.userId, (childQftdsMap.get(snapshot.userId) || 0) + snapshot.qftds);
+    const descendantQftdsMap = new Map<string, number>();
+    for (const snapshot of descendantSnapshots) {
+      descendantQftdsMap.set(snapshot.userId, (descendantQftdsMap.get(snapshot.userId) || 0) + snapshot.qftds);
     }
 
-    // Calculate commission from direct children using integer arithmetic (cents)
-    const comissaoEquipeCents = directChildrenHouseData.reduce((sum, data) => {
+    // Calculate commission from ALL descendants (entire tree) using integer arithmetic (cents)
+    // comissaoEquipe = Σ(Meu CPA - CPA de cada descendente) × QFTDS de cada descendente
+    const comissaoEquipeCents = descendantHouseData.reduce((sum, data) => {
       const userCpaCents = userHouseData ? Math.round(Number(userHouseData.cpa) * 100) : 0;
-      const childCpaCents = Math.round(Number(data.cpa) * 100);
-      const cpaDifferenceCents = Math.max(0, userCpaCents - childCpaCents);
-      const childQftds = childQftdsMap.get(data.userId) || 0;
-      return sum + cpaDifferenceCents * childQftds;
+      const descendantCpaCents = Math.round(Number(data.cpa) * 100);
+      const cpaDifferenceCents = Math.max(0, userCpaCents - descendantCpaCents);
+      const descendantQftds = descendantQftdsMap.get(data.userId) || 0;
+      return sum + cpaDifferenceCents * descendantQftds;
     }, 0);
     const comissaoEquipe = comissaoEquipeCents / 100;
 
