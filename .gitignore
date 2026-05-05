@@ -1,11 +1,41 @@
+# Dependencies
 node_modules/
-.next/
+/.pnp
+.pnp.js
+
+# Testing
+/coverage
+
+# Next.js
+/.next/
+/out/
+
+# Production
+/build
+/dist
+
+# Misc
+.DS_Store
+*.pem
+*.log
+*.log*
+lerna-debug.log*
+.env
 .env.local
 .env.*.local
-*.log
-.DS_Store
-dist/
-build/
+.env.production.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+Thumbs.db
+
+# Vercel & Turbo
 .vercel/
 .turbo/
-.env
+
