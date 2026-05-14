@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { PrismaClient } from "@prisma/client";
+import { prisma } from "@/lib/prisma";
 import { verifyToken } from "@/lib/auth";
-
-const prisma = new PrismaClient();
 
 // BFS to verify if nodeId is a descendant of userId
 async function isDescendantOf(userId: string, nodeId: string): Promise<boolean> {
@@ -127,6 +125,14 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       },
     });
 
+    // Helper to convert Date to DateTime for @db.Date comparison
+    const dateToString = (d: Date): Date => {
+      const year = d.getFullYear();
+      const month = String(d.getMonth() + 1).padStart(2, "0");
+      const day = String(d.getDate()).padStart(2, "0");
+      return new Date(`${year}-${month}-${day}T00:00:00Z`);
+    };
+
     // Calculate date boundaries for the selected timeframe
     const now = new Date();
     now.setHours(0, 0, 0, 0);
@@ -138,9 +144,14 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       where: {
         userId,
         houseId,
-        date: { gte: periodStart },
+        date: { gte: dateToString(periodStart) },
       },
     });
+
+    // Calculate period stats
+    const periodRegistros = userSnapshots.reduce((sum, s) => sum + s.registros, 0);
+    const periodFtds = userSnapshots.reduce((sum, s) => sum + s.ftds, 0);
+    const periodQftds = userSnapshots.reduce((sum, s) => sum + s.qftds, 0);
 
     const meuRevCents = userSnapshots.reduce((sum, snapshot) => {
       const cpaCents = houseData ? Math.round(Number(houseData.cpa) * 100) : 0;
@@ -197,9 +208,33 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 
     const totalProprio = meuRev + comissaoEquipe;
 
+    // Get team stats (all descendants)
+    const allDescendants = await getAllDescendants(viewedUserId);
+    const teamSnapshots = await prisma.dailySnapshot.findMany({
+      where: {
+        userId: { in: allDescendants },
+        houseId,
+        date: { gte: periodStart },
+      },
+    });
+
+    const teamRegistros = teamSnapshots.reduce((sum, s) => sum + s.registros, 0);
+    const teamFtds = teamSnapshots.reduce((sum, s) => sum + s.ftds, 0);
+    const teamQftds = teamSnapshots.reduce((sum, s) => sum + s.qftds, 0);
+
     return NextResponse.json({
       user,
       houseData,
+      periodStats: {
+        registros: periodRegistros,
+        ftds: periodFtds,
+        qftds: periodQftds,
+      },
+      teamStats: {
+        registros: teamRegistros,
+        ftds: teamFtds,
+        qftds: teamQftds,
+      },
       performance: {
         meuRev,
         totalProprio,

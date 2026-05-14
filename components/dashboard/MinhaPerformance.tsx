@@ -6,7 +6,6 @@ interface MinhaPerformanceProps {
   qftds: number;
   cpa: string;
   reu: string;
-  totalPaguito: string;
 }
 
 export default function MinhaPerformance({
@@ -15,21 +14,19 @@ export default function MinhaPerformance({
   qftds,
   cpa,
   reu,
-  totalPaguito,
 }: MinhaPerformanceProps) {
   return (
     <div>
 
-      <div className="grid grid-cols-3 gap-3 md:gap-4 mb-4">
-        <StatCard label="Meus Registros" value={registros} />
-        <StatCard label="Meus FTDs" value={ftds} />
-        <StatCard label="Meus QFTDs" value={qftds} />
+      <div className="grid grid-cols-4 gap-3 md:gap-4">
+        <StatCard label="Registros" value={registros} />
+        <StatCard label="FTDs" value={ftds} />
+        <StatCard label="QFTDs" value={qftds} />
+        <StatCard label="CPA" value={cpa} accent />
       </div>
 
-      <div className="grid grid-cols-3 gap-3 md:gap-4">
-        <StatCard label="Meu CPA" value={cpa} accent />
-        <StatCard label="Meu Rev" value={reu} />
-        <StatCard label="Total Próprio" value={totalPaguito} />
+      <div className="mt-4">
+        <StatCard label="Comissão" value={reu} hoverScale="small" />
       </div>
     </div>
   );

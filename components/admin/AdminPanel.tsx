@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Search, ChevronRight, Settings } from "lucide-react";
+import { Search, ChevronRight } from "lucide-react";
 import { useHouse } from "@/context/HouseContext";
 import AdminUserModal from "./AdminUserModal";
 
@@ -12,7 +12,8 @@ interface User {
   role: string;
 }
 
-const ITEMS_PER_PAGE = 5;
+
+const ITEMS_PER_PAGE = 10;
 const TOTAL_LIMIT = 100;
 
 export default function AdminPanel() {
@@ -23,10 +24,64 @@ export default function AdminPanel() {
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
-
+  const [logoUrl, setLogoUrl] = useState<string | null>(null);
+  const [logoLoading, setLogoLoading] = useState(true);
+  const [uploading, setUploading] = useState(false);
+  const [uploadMessage, setUploadMessage] = useState("");
   useEffect(() => {
     fetchAllUsers();
+    fetchLogo();
   }, []);
+
+  const fetchLogo = async () => {
+    try {
+      setLogoLoading(true);
+      const res = await fetch("/api/settings");
+      if (res.ok) {
+        const data = await res.json();
+        setLogoUrl(data.logoUrl);
+      }
+    } catch (err) {
+      console.error("Error fetching logo:", err);
+    } finally {
+      setLogoLoading(false);
+    }
+  };
+
+
+  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploading(true);
+    setUploadMessage("");
+
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const res = await fetch("/api/admin/upload-logo", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        setLogoUrl(data.logoUrl);
+        setUploadMessage("✅ Logo atualizado com sucesso!");
+        setTimeout(() => setUploadMessage(""), 3000);
+      } else {
+        const error = await res.json();
+        setUploadMessage(`❌ ${error.error}`);
+      }
+    } catch (err) {
+      console.error("Error uploading logo:", err);
+      setUploadMessage("❌ Erro ao fazer upload da logo");
+    } finally {
+      setUploading(false);
+      e.target.value = "";
+    }
+  };
 
   const fetchAllUsers = async () => {
     try {
@@ -66,16 +121,57 @@ export default function AdminPanel() {
 
   return (
     <>
-      <div
-        className="rounded-lg border bg-zinc-900/50 p-6 space-y-4"
-        style={{
-          borderColor: theme.colors.primary,
-          boxShadow: `0 0 15px ${theme.colors.primary}20`,
-        }}
-      >
-        <div className="flex items-center gap-2 mb-4">
-          <Settings size={20} style={{ color: theme.colors.primary }} />
-          <h2 className="text-lg md:text-xl font-bold text-white">Painel de Administração</h2>
+      <div className="space-y-6 md:space-y-8">
+        {/* Site Settings Section */}
+        <div className="bg-zinc-800/50 rounded-lg p-4 mb-6 border border-zinc-700">
+          <h3 className="text-white font-semibold mb-4">Configurações do Site</h3>
+
+          <div className="space-y-4">
+            {/* Logo Preview */}
+            <div className="flex items-center gap-4">
+              <div className="w-24 h-24 bg-zinc-700 rounded-lg flex items-center justify-center overflow-hidden shrink-0">
+                {logoLoading ? (
+                  <div className="w-full h-full bg-gradient-to-r from-zinc-800 via-zinc-700 to-zinc-800 animate-pulse" />
+                ) : logoUrl ? (
+                  <img
+                    src={logoUrl}
+                    alt="Current Logo"
+                    className="w-full h-full object-contain p-2"
+                  />
+                ) : null}
+              </div>
+
+              <div className="flex-1">
+                <label className="block mb-2">
+                  <span className="text-zinc-300 text-sm font-medium mb-2 block">Fazer upload de logo</span>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleLogoUpload}
+                    disabled={uploading}
+                    className="block w-full text-sm text-zinc-400
+                      file:mr-4 file:py-2 file:px-4
+                      file:rounded-lg file:border-0
+                      file:text-sm file:font-semibold
+                      file:bg-zinc-700 file:text-white
+                      hover:file:bg-zinc-600
+                      disabled:opacity-50 disabled:cursor-not-allowed"
+                  />
+                </label>
+                <p className="text-xs text-zinc-500">Máx 2MB. PNG, JPG ou WebP.</p>
+              </div>
+            </div>
+
+            {uploadMessage && (
+              <div className={`text-sm rounded-lg p-3 ${
+                uploadMessage.startsWith("✅")
+                  ? "bg-green-500/10 text-green-300 border border-green-500/30"
+                  : "bg-red-500/10 text-red-300 border border-red-500/30"
+              }`}>
+                {uploadMessage}
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Search Box */}
@@ -105,7 +201,7 @@ export default function AdminPanel() {
                   <p>Nenhum usuário encontrado</p>
                 </div>
               ) : (
-                <div className="space-y-2 max-h-60 overflow-y-auto">
+                <div className="space-y-2 max-h-[700px] overflow-y-auto">
                   {paginatedUsers.map((user) => (
                     <button
                       key={user.id}

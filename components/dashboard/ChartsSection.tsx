@@ -22,16 +22,13 @@ export default function ChartsSection({ houseId, timeframe, affiliateId, viewing
   const [chartsData, setChartsData] = useState<ChartsData | null>(null);
   const [loading, setLoading] = useState(false);
 
-  // Determine which affiliateId to use for the API call
-  const effectiveAffiliateId = viewingUserId || affiliateId;
-
   // Fetch charts data when houseId, timeframe, or affiliateId changes
   useEffect(() => {
     const fetchChartsData = async () => {
       try {
         setLoading(true);
         const res = await fetch(
-          `/api/users/me/charts?houseId=${houseId}&affiliateId=${effectiveAffiliateId}&timeframe=${timeframe}`
+          `/api/users/me/charts?houseId=${houseId}&affiliateId=${affiliateId}&timeframe=${timeframe}`
         );
         if (res.ok) {
           const data = await res.json();
@@ -50,7 +47,7 @@ export default function ChartsSection({ houseId, timeframe, affiliateId, viewing
     if (houseId) {
       fetchChartsData();
     }
-  }, [houseId, timeframe, effectiveAffiliateId]);
+  }, [houseId, timeframe, affiliateId, viewingUserId]);
 
   return (
     <div className="space-y-4 md:space-y-6">

@@ -14,14 +14,17 @@ interface AffiliateFilterProps {
   houseId: string;
   value: string;
   onChange: (affiliateId: string) => void;
+  currentUserName?: string;
 }
 
-export default function AffiliateFilter({ houseId, value, onChange }: AffiliateFilterProps) {
+export default function AffiliateFilter({ houseId, value, onChange, currentUserName = "Você" }: AffiliateFilterProps) {
   const { theme } = useHouse();
   const [affiliates, setAffiliates] = useState<Affiliate[]>([]);
   const [loading, setLoading] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
   const containerRef = useRef<HTMLDivElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const fetchAffiliates = async () => {
@@ -58,13 +61,30 @@ export default function AffiliateFilter({ houseId, value, onChange }: AffiliateF
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  useEffect(() => {
+    if (isOpen && searchInputRef.current) {
+      searchInputRef.current.focus();
+    }
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen) {
+      setSearchQuery("");
+    }
+  }, [isOpen]);
+
   const selectedAffiliateLabel = value === "all"
-    ? "Todos os afiliados"
+    ? currentUserName
     : affiliates.find(a => a.id === value)?.name || "Selecionar...";
+
+  const filteredAffiliates = affiliates.filter(affiliate =>
+    affiliate.name.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   const handleSelectAffiliate = (affiliateId: string) => {
     onChange(affiliateId);
     setIsOpen(false);
+    setSearchQuery("");
   };
 
   return (
@@ -87,54 +107,71 @@ export default function AffiliateFilter({ houseId, value, onChange }: AffiliateF
 
       {isOpen && (
         <div
-          className="absolute top-full left-0 right-0 mt-2 bg-zinc-900 border rounded-lg shadow-lg z-50 max-h-64 overflow-y-auto"
+          className="absolute top-full left-0 right-0 mt-2 bg-zinc-900 border rounded-lg shadow-lg z-50 max-h-96 overflow-hidden flex flex-col"
           style={{ borderColor: theme.colors.primary }}
         >
-          {/* Todos os afiliados option */}
-          <button
-            onClick={() => handleSelectAffiliate("all")}
-            className="w-full px-4 py-3 text-left hover:bg-zinc-800/50 transition border-b first:rounded-t-lg text-white font-medium"
-            style={{ borderColor: theme.colors.primary }}
-          >
-            Todos os afiliados
-          </button>
+          {/* Search input */}
+          <div className="p-2 border-b sticky top-0 bg-zinc-900" style={{ borderColor: theme.colors.primary }}>
+            <input
+              ref={searchInputRef}
+              type="text"
+              placeholder="Buscar afiliado..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full px-3 py-2 bg-zinc-800 border rounded text-white text-sm placeholder-zinc-500 focus:outline-none"
+              style={{ borderColor: theme.colors.primary }}
+              onClick={(e) => e.stopPropagation()}
+            />
+          </div>
 
-          {/* Loading state */}
-          {loading && (
-            <div className="px-4 py-3 text-zinc-400 text-sm text-center">
-              Carregando...
-            </div>
-          )}
+          {/* Dropdown content */}
+          <div className="overflow-y-auto">
+            {/* Todos os afiliados option */}
+            <button
+              onClick={() => handleSelectAffiliate("all")}
+              className="w-full px-4 py-3 text-left hover:bg-zinc-800/50 transition border-b text-white font-medium"
+              style={{ borderColor: theme.colors.primary }}
+            >
+              {currentUserName} (Você)
+            </button>
 
-          {/* Affiliates list */}
-          {!loading && affiliates.length > 0 ? (
-            affiliates.map((affiliate) => (
-              <button
-                key={affiliate.id}
-                onClick={() => handleSelectAffiliate(affiliate.id)}
-                className="w-full px-4 py-3 text-left hover:bg-zinc-800/50 transition border-b last:border-b-0 flex items-center justify-between"
-                style={{
-                  borderColor: theme.colors.primary,
-                  paddingLeft: `${12 + (affiliate.level - 1) * 16}px`,
-                }}
-              >
-                <span className="text-white">{affiliate.name}</span>
-                <span
-                  className="text-xs font-semibold px-2 py-1 rounded"
+            {/* Loading state */}
+            {loading && (
+              <div className="px-4 py-3 text-zinc-400 text-sm text-center">
+                Carregando...
+              </div>
+            )}
+
+            {/* Affiliates list */}
+            {!loading && filteredAffiliates.length > 0 ? (
+              filteredAffiliates.map((affiliate) => (
+                <button
+                  key={affiliate.id}
+                  onClick={() => handleSelectAffiliate(affiliate.id)}
+                  className="w-full px-4 py-3 text-left hover:bg-zinc-800/50 transition border-b last:border-b-0 flex items-center justify-between"
                   style={{
-                    backgroundColor: theme.colors.primary,
-                    color: "#000",
+                    borderColor: theme.colors.primary,
+                    paddingLeft: `${12 + (affiliate.level - 1) * 16}px`,
                   }}
                 >
-                  N{affiliate.level}
-                </span>
-              </button>
-            ))
-          ) : !loading && (
-            <div className="px-4 py-3 text-zinc-400 text-sm text-center">
-              Nenhum afiliado encontrado
-            </div>
-          )}
+                  <span className="text-white">{affiliate.name}</span>
+                  <span
+                    className="text-xs font-semibold px-2 py-1 rounded"
+                    style={{
+                      backgroundColor: theme.colors.primary,
+                      color: "#000",
+                    }}
+                  >
+                    N{affiliate.level}
+                  </span>
+                </button>
+              ))
+            ) : !loading && searchQuery && (
+              <div className="px-4 py-3 text-zinc-400 text-sm text-center">
+                Nenhum afiliado encontrado com "{searchQuery}"
+              </div>
+            )}
+          </div>
         </div>
       )}
     </div>

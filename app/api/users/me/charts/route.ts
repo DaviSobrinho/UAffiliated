@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { PrismaClient, Prisma } from "@prisma/client";
+import { prisma } from "@/lib/prisma";
 import { verifyToken } from "@/lib/auth";
-
-const prisma = new PrismaClient();
 
 const TIMEFRAME_DAYS: Record<string, number> = {
   "7d": 7,
@@ -121,15 +119,22 @@ export async function GET(request: NextRequest) {
     currentMonthStart.setHours(0, 0, 0, 0);
     const prevMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
     prevMonthStart.setHours(0, 0, 0, 0);
-    const prevMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0);
-    prevMonthEnd.setHours(23, 59, 59, 999);
+    const prevMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999);
+
+    // Helper to convert Date to ISO string for @db.Date comparison
+    const dateToString = (d: Date) => {
+      const year = d.getFullYear();
+      const month = String(d.getMonth() + 1).padStart(2, "0");
+      const day = String(d.getDate()).padStart(2, "0");
+      return new Date(`${year}-${month}-${day}T00:00:00Z`);
+    };
 
     // Query snapshots for current period (timeline, based on timeframe)
     const currentSnapshots = await prisma.dailySnapshot.findMany({
       where: {
         userId: { in: targetIds },
         houseId,
-        date: { gte: currentStart },
+        date: { gte: dateToString(currentStart) },
       },
       orderBy: { date: "asc" },
     });
@@ -139,7 +144,7 @@ export async function GET(request: NextRequest) {
       where: {
         userId: { in: targetIds },
         houseId,
-        date: { gte: previousStart, lt: currentStart },
+        date: { gte: dateToString(previousStart), lt: dateToString(currentStart) },
       },
     });
 
@@ -148,7 +153,7 @@ export async function GET(request: NextRequest) {
       where: {
         userId: { in: targetIds },
         houseId,
-        date: { gte: currentMonthStart },
+        date: { gte: dateToString(currentMonthStart) },
       },
     });
 
@@ -157,7 +162,7 @@ export async function GET(request: NextRequest) {
       where: {
         userId: { in: targetIds },
         houseId,
-        date: { gte: prevMonthStart, lte: prevMonthEnd },
+        date: { gte: dateToString(prevMonthStart), lte: dateToString(prevMonthEnd) },
       },
     });
 
@@ -185,8 +190,50 @@ export async function GET(request: NextRequest) {
       targetUserHouseData.map((data) => [data.userId, Math.round(Number(data.cpa) * 100)])
     );
 
-    // Build timeline: group by date, calculate commission using CPA difference (in cents)
+    // Get direct children
+    const directChildren = await prisma.user.findMany({
+      where: { affiliateParentId: decoded.id },
+      select: { id: true },
+    });
+    const directChildrenIds = directChildren.map(c => c.id);
+
+    // Precalculate subtrees for all direct children
+    const directChildrenSubtrees = new Map<string, Set<string>>();
+    for (const directChildId of directChildrenIds) {
+      const descendants = await getAllDescendants(directChildId);
+      directChildrenSubtrees.set(directChildId, new Set([directChildId, ...descendants]));
+    }
+
+    // Helper function to calculate commission correctly
+    const calculateCommission = (snapshots: typeof currentSnapshots): number => {
+      let totalCents = 0;
+
+      // Add own commission (own CPA × own QFTDS)
+      for (const snap of snapshots) {
+        if (snap.userId === decoded.id) {
+          totalCents += userCpaCents * snap.qftds;
+        }
+      }
+
+      // Add commission from each direct child's subtree
+      for (const directChildId of directChildrenIds) {
+        const directChildCpaCents = cpaByCpnserId.get(directChildId) || userCpaCents;
+        const cpaDifferenceCents = Math.max(0, userCpaCents - directChildCpaCents);
+        const subtreeIds = directChildrenSubtrees.get(directChildId) || new Set([directChildId]);
+
+        for (const snap of snapshots) {
+          if (subtreeIds.has(snap.userId)) {
+            totalCents += cpaDifferenceCents * snap.qftds;
+          }
+        }
+      }
+
+      return totalCents;
+    };
+
+    // Build timeline: group by date, calculate commission correctly
     const timelineMapCents = new Map<string, number>();
+
     for (let i = days; i >= 0; i--) {
       const date = new Date(now);
       date.setDate(now.getDate() - i);
@@ -194,16 +241,30 @@ export async function GET(request: NextRequest) {
       timelineMapCents.set(dateStr, 0);
     }
 
+    // Add own commission to timeline
     for (const snapshot of currentSnapshots) {
-      const dateStr = new Date(snapshot.date).toISOString().slice(0, 10);
-      const currentCents = timelineMapCents.get(dateStr) || 0;
+      if (snapshot.userId === decoded.id) {
+        const dateStr = new Date(snapshot.date).toISOString().slice(0, 10);
+        const currentCents = timelineMapCents.get(dateStr) || 0;
+        const myCommissionCents = userCpaCents * snapshot.qftds;
+        timelineMapCents.set(dateStr, currentCents + myCommissionCents);
+      }
+    }
 
-      // Calculate commission using CPA difference: (My CPA - Their CPA) × QFTDS
-      const snapshotUserCpaCents = cpaByCpnserId.get(snapshot.userId) || 0;
-      const cpaDifferenceCents = Math.max(0, userCpaCents - snapshotUserCpaCents);
-      const commissionCents = cpaDifferenceCents * snapshot.qftds;
+    // Add commission from direct children to timeline
+    for (const directChildId of directChildrenIds) {
+      const directChildCpaCents = cpaByCpnserId.get(directChildId) || userCpaCents;
+      const cpaDifferenceCents = Math.max(0, userCpaCents - directChildCpaCents);
+      const subtreeIds = directChildrenSubtrees.get(directChildId) || new Set([directChildId]);
 
-      timelineMapCents.set(dateStr, currentCents + commissionCents);
+      for (const snapshot of currentSnapshots) {
+        if (subtreeIds.has(snapshot.userId)) {
+          const dateStr = new Date(snapshot.date).toISOString().slice(0, 10);
+          const currentCents = timelineMapCents.get(dateStr) || 0;
+          const childCommissionCents = cpaDifferenceCents * snapshot.qftds;
+          timelineMapCents.set(dateStr, currentCents + childCommissionCents);
+        }
+      }
     }
 
     const timeline = Array.from(timelineMapCents, ([date, revenueCents]) => ({ date, revenue: revenueCents / 100 }));
@@ -218,25 +279,10 @@ export async function GET(request: NextRequest) {
       { registros: 0, ftds: 0, qftds: 0 }
     );
 
-    // Build comparison: calculate commission using CPA difference
-    const currentMonthCommissionCents = currentMonthSnapshots.reduce((acc, s) => {
-      const snapshotUserCpaCents = cpaByCpnserId.get(s.userId) || 0;
-      const cpaDifferenceCents = Math.max(0, userCpaCents - snapshotUserCpaCents);
-      return acc + cpaDifferenceCents * s.qftds;
-    }, 0);
-
-    const prevMonthCommissionCents = prevMonthSnapshots.reduce((acc, s) => {
-      const snapshotUserCpaCents = cpaByCpnserId.get(s.userId) || 0;
-      const cpaDifferenceCents = Math.max(0, userCpaCents - snapshotUserCpaCents);
-      return acc + cpaDifferenceCents * s.qftds;
-    }, 0);
-
-    // Calculate total commission from current period using CPA difference formula
-    const totalCommissionCents = currentSnapshots.reduce((acc, s) => {
-      const snapshotUserCpaCents = cpaByCpnserId.get(s.userId) || 0;
-      const cpaDifferenceCents = Math.max(0, userCpaCents - snapshotUserCpaCents);
-      return acc + cpaDifferenceCents * s.qftds;
-    }, 0);
+    // Calculate commissions correctly
+    const currentMonthCommissionCents = calculateCommission(currentMonthSnapshots);
+    const prevMonthCommissionCents = calculateCommission(prevMonthSnapshots);
+    const totalCommissionCents = calculateCommission(currentSnapshots);
 
     return NextResponse.json({
       timeline,

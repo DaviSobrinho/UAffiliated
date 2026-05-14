@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
@@ -12,6 +12,27 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [logoUrl, setLogoUrl] = useState<string | null>(null);
+  const [logoLoading, setLogoLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchLogo = async () => {
+      try {
+        setLogoLoading(true);
+        const res = await fetch("/api/settings");
+        if (res.ok) {
+          const data = await res.json();
+          setLogoUrl(data.logoUrl);
+        }
+      } catch (err) {
+        console.error("Error fetching logo:", err);
+      } finally {
+        setLogoLoading(false);
+      }
+    };
+
+    fetchLogo();
+  }, []);
 
   const handleSubmit = async (e: React.SyntheticEvent) => {
     e.preventDefault();
@@ -49,14 +70,18 @@ export default function LoginPage() {
 
       <div className="w-full max-w-sm">
         <div className="mb-8 flex justify-center">
-          <Image
-            src="/uaffiliatedwide.png"
-            alt="UAffiliated"
-            width={400}
-            height={160}
-            className="w-80 h-auto rounded-2xl drop-shadow-lg"
-            priority
-          />
+          {logoLoading ? (
+            <div className="w-80 h-40 bg-gradient-to-r from-zinc-800 via-zinc-700 to-zinc-800 rounded-2xl animate-pulse drop-shadow-lg" />
+          ) : logoUrl ? (
+            <Image
+              src={logoUrl}
+              alt="UAffiliated"
+              width={400}
+              height={160}
+              className="w-80 h-auto rounded-2xl drop-shadow-lg"
+              priority
+            />
+          ) : null}
         </div>
 
         <div className="bg-zinc-900 rounded-3xl shadow-2xl p-8 border border-zinc-800/50">

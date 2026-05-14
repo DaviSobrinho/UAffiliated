@@ -34,13 +34,26 @@ model User {
   updatedAt             DateTime   @updatedAt
 }
 
+model House {
+  id                String     @id @default(cuid())
+  name              String     @unique
+  logoUrl           String?
+  color             String     @default("#3b82f6")
+
+  userHouseData     UserHouseData[]
+  dailySnapshots    DailySnapshot[]
+
+  createdAt         DateTime   @default(now())
+  updatedAt         DateTime   @updatedAt
+}
+
 model UserHouseData {
   id                String     @id @default(cuid())
   userId            String
   user              User       @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   houseId           String
-  houseName         String
+  house             House      @relation(fields: [houseId], references: [id], onDelete: Cascade)
 
   cpa               Decimal
   affiliateLink     String     @unique
@@ -62,6 +75,7 @@ model DailySnapshot {
   userId    String
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   houseId   String
+  house     House    @relation(fields: [houseId], references: [id], onDelete: Cascade)
   date      DateTime @db.Date
   registros Int      @default(0)
   ftds      Int      @default(0)
@@ -70,4 +84,9 @@ model DailySnapshot {
   createdAt DateTime @default(now())
 
   @@unique([userId, houseId, date])
+}
+
+model SiteSettings {
+  id      String @id @default("singleton")
+  logoUrl String @default("/uaffiliatedwide.png")
 }
