@@ -68,27 +68,42 @@ export default function HouseSelector() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const currentTheme = HOUSE_THEMES[selectedHouse] || HOUSE_THEMES.betano;
+  const getThemeByName = (houseName: string): HouseTheme | undefined => {
+    return Object.values(HOUSE_THEMES).find(
+      (theme) => theme.name.toLowerCase() === houseName.toLowerCase()
+    );
+  };
 
   const getDisplayName = (houseId: string) => {
-    const dynamic = dynamicHouses.find((h) => h.id === houseId);
-    return dynamic?.name || currentTheme?.name || "Casa";
+    const house = dynamicHouses.find((h) => h.id === houseId);
+    return house?.name || "Casa";
+  };
+
+  const getDisplayColor = (houseId: string) => {
+    const house = dynamicHouses.find((h) => h.id === houseId);
+    if (!house) return "#3b82f6";
+
+    // Se a casa tem cor no banco, usa ela
+    if (house.color && house.color !== "#3b82f6") return house.color;
+
+    // Senão, tenta pegar do tema baseado no nome
+    const theme = getThemeByName(house.name);
+    return theme?.colors?.primary || house.color || "#3b82f6";
   };
 
   const getDisplayLogo = (houseId: string) => {
-    const dynamic = dynamicHouses.find((h) => h.id === houseId);
-    if (dynamic?.logoUrl) return dynamic.logoUrl;
-    return currentTheme?.logo || "/betano.png";
+    const house = dynamicHouses.find((h) => h.id === houseId);
+    if (!house) return undefined;
+
+    // Se tem logo no R2, usa
+    if (house.logoUrl) return house.logoUrl;
+
+    // Senão, tenta usar logo do tema local
+    const theme = getThemeByName(house.name);
+    return theme?.logo;
   };
 
-  const allHouses = [
-    ...Object.values(HOUSE_THEMES),
-    ...dynamicHouses.filter(
-      (dh) => !Object.values(HOUSE_THEMES).some((th) => th.id === dh.id)
-    ),
-  ];
-
-  const selectedColor = currentTheme?.colors?.primary || "#3b82f6";
+  const selectedColor = getDisplayColor(selectedHouse);
   const selectedLogo = getDisplayLogo(selectedHouse);
   const selectedName = getDisplayName(selectedHouse);
 
@@ -131,12 +146,12 @@ export default function HouseSelector() {
           <div className="max-h-96 overflow-y-auto">
             {loadingHouses ? (
               <div className="px-4 py-3 text-zinc-400 text-sm">Carregando...</div>
+            ) : dynamicHouses.length === 0 ? (
+              <div className="px-4 py-3 text-zinc-400 text-sm">Nenhuma casa disponível</div>
             ) : (
-              allHouses.map((house) => {
-                const isDynamic = dynamicHouses.some((dh) => dh.id === house.id);
-                const dynamicHouse = dynamicHouses.find((dh) => dh.id === house.id);
-                const logoUrl = isDynamic ? dynamicHouse?.logoUrl : (house as any).logo;
-                const houseColor = isDynamic ? dynamicHouse?.color : (house as any).colors?.primary || "#3b82f6";
+              dynamicHouses.map((house) => {
+                const logoUrl = getDisplayLogo(house.id);
+                const houseColor = getDisplayColor(house.id);
 
                 return (
                   <button

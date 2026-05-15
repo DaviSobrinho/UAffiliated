@@ -20,6 +20,8 @@ export default function HousesManagement() {
   const [creatingHouse, setCreatingHouse] = useState(false);
   const [houseMessage, setHouseMessage] = useState("");
   const [uploadingHouseLogo, setUploadingHouseLogo] = useState(false);
+  const [editingColor, setEditingColor] = useState<Record<string, string>>({});
+  const [savingColor, setSavingColor] = useState(false);
 
   useEffect(() => {
     fetchHouses();
@@ -130,6 +132,34 @@ export default function HousesManagement() {
     }
   };
 
+  const handleSaveHouseColor = async (houseId: string, newColor: string) => {
+    setSavingColor(true);
+    setHouseMessage("");
+
+    try {
+      const res = await fetch(`/api/admin/houses/${houseId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ color: newColor }),
+      });
+
+      if (res.ok) {
+        setHouseMessage("✅ Cor da casa atualizada com sucesso!");
+        setEditingHouseColor(null);
+        fetchHouses();
+        setTimeout(() => setHouseMessage(""), 3000);
+      } else {
+        const data = await res.json();
+        setHouseMessage(`❌ ${data.error}`);
+      }
+    } catch (err) {
+      console.error("Error updating house color:", err);
+      setHouseMessage("❌ Erro ao atualizar cor da casa");
+    } finally {
+      setSavingColor(false);
+    }
+  };
+
   return (
     <>
       <div className="space-y-6 md:space-y-8">
@@ -218,14 +248,23 @@ export default function HousesManagement() {
                 >
                   <div className="flex items-start justify-between gap-3 mb-2">
                     <div className="flex items-center gap-2 flex-1 min-w-0">
-                      <div
-                        className="w-4 h-4 rounded-full shrink-0"
-                        style={{ backgroundColor: house.color }}
-                        title={house.color}
-                      />
+                      <label className="flex items-center gap-2 cursor-pointer hover:opacity-80 transition" title="Clique para editar cor">
+                        <input
+                          type="color"
+                          value={editingColor[house.id] || house.color}
+                          onChange={(e) => setEditingColor({ ...editingColor, [house.id]: e.target.value })}
+                          onBlur={(e) => {
+                            if (editingColor[house.id] && editingColor[house.id] !== house.color) {
+                              handleSaveHouseColor(house.id, editingColor[house.id]);
+                            }
+                          }}
+                          disabled={savingColor}
+                          className="w-6 h-6 rounded cursor-pointer border border-zinc-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                        />
+                      </label>
                       <div className="min-w-0">
                         <p className="text-white font-medium truncate text-sm">{house.name}</p>
-                        <p className="text-zinc-400 text-xs">{house.color}</p>
+                        <p className="text-zinc-400 text-xs">{editingColor[house.id] || house.color}</p>
                       </div>
                     </div>
                     <button
@@ -252,7 +291,7 @@ export default function HousesManagement() {
                     </div>
                     <label className="flex-1">
                       <span className="text-zinc-300 text-xs font-medium block mb-1">Upload Logo</span>
-                      <p className="text-zinc-500 text-xs mb-2">Recomendado: máx 2MB, proporção 16:9 ou quadrada</p>
+                      <p className="text-zinc-500 text-xs mb-2">Recomendado: máx 2MB, proporção 16:9 (ex: 1600x900 ou 800x450)</p>
                       <input
                         type="file"
                         accept="image/*"

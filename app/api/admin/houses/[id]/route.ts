@@ -3,6 +3,50 @@ import { verifyToken } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { invalidateHouseCache } from "@/lib/house-utils";
 
+export async function PUT(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const { id } = await params;
+  try {
+    const token = request.cookies.get("auth")?.value;
+    if (!token) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const user = verifyToken(token);
+    if (!user || user.role !== "ADMIN") {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    const body = await request.json();
+    const { color, name } = body;
+
+    if (!color && !name) {
+      return NextResponse.json({ error: "No fields to update" }, { status: 400 });
+    }
+
+    const updateData: any = {};
+    if (color) updateData.color = color;
+    if (name) updateData.name = name;
+
+    const updatedHouse = await prisma.house.update({
+      where: { id },
+      data: updateData,
+    });
+
+    invalidateHouseCache();
+
+    return NextResponse.json({ house: updatedHouse }, { status: 200 });
+  } catch (error) {
+    console.error("Error updating house:", error);
+    return NextResponse.json(
+      { error: "Failed to update house" },
+      { status: 500 }
+    );
+  }
+}
+
 export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
