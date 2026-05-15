@@ -3,6 +3,12 @@
 import { createContext, useContext, useState, useEffect } from "react";
 import { HouseTheme, HOUSE_THEMES } from "@/lib/houseThemes";
 
+interface House {
+  id: string;
+  name: string;
+  color: string;
+}
+
 interface HouseContextType {
   selectedHouse: string;
   theme: HouseTheme;
@@ -23,7 +29,7 @@ const getThemeForHouse = async (houseId: string): Promise<HouseTheme> => {
     const res = await fetch("/api/admin/houses");
     if (res.ok) {
       const data = await res.json();
-      const house = data.houses?.find((h: any) => h.id === houseId);
+      const house = data.houses?.find((h: House) => h.id === houseId);
       if (house) {
         // Tenta encontrar um tema pré-definido por nome
         const theme = Object.values(HOUSE_THEMES).find(

@@ -126,7 +126,7 @@ export function ComparativeChart({ current, previous, metric = "receita", onMetr
   const percentChange = previous > 0 ? ((current - previous) / previous * 100).toFixed(1) : "0";
   const isPositive = parseFloat(percentChange) >= 0;
 
-  const metrics = [
+  const metrics: Array<{ value: "receita" | "registros" | "ftds" | "qftds"; label: string }> = [
     { value: "receita", label: "Receita" },
     { value: "registros", label: "Registros" },
     { value: "ftds", label: "FTDs" },
@@ -167,7 +167,7 @@ export function ComparativeChart({ current, previous, metric = "receita", onMetr
                   <button
                     key={m.value}
                     onClick={() => {
-                      onMetricChange?.(m.value as any);
+                      onMetricChange?.(m.value);
                       setIsOpen(false);
                     }}
                     className="w-full px-4 py-3 text-left hover:bg-zinc-800/50 transition border-b last:border-b-0 border-l-4 text-white"
@@ -256,10 +256,10 @@ export function FunnelChart({ registros, ftds, qftds }: FunnelChartProps) {
           <Tooltip
             contentStyle={{ backgroundColor: "#1f2937", border: `1px solid ${theme.colors.primary}`, borderRadius: "6px" }}
             labelStyle={{ color: "#fff" }}
-            formatter={(value: unknown, _name: string, props: any) => {
+            formatter={(value: unknown, _name: string, props: unknown) => {
               if (typeof value !== "number") return "";
               const percentage = getPercentage(value);
-              return [`${value} (${percentage}%)`, props.name];
+              return [`${value} (${percentage}%)`, (props as any).name];
             }}
             labelFormatter={(label: unknown) => `${label}`}
           />

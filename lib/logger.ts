@@ -51,13 +51,13 @@ export class Logger {
     console.warn(this.formatLog(entry));
   }
 
-  error(message: string, error?: any) {
+  error(message: string, error?: unknown) {
     const entry: LogEntry = {
       timestamp: new Date().toISOString(),
       level: "ERROR",
       module: this.module,
       message,
-      error: error?.message || String(error),
+      error: (error as any)?.message || String(error),
     };
     this.logs.push(entry);
     console.error(this.formatLog(entry));
@@ -77,7 +77,7 @@ export class Logger {
     }
   }
 
-  debug(message: string, data?: any) {
+  debug(message: string, data?: unknown) {
     if (process.env.DEBUG) {
       const entry: LogEntry = {
         timestamp: new Date().toISOString(),

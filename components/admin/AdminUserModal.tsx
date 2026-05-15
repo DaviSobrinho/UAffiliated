@@ -27,6 +27,19 @@ interface DailySnapshot {
   revenue: string;
 }
 
+interface ChartDataPoint {
+  date: Date;
+  registros: number;
+  ftds: number;
+  qftds: number;
+}
+
+interface EditDataPoint {
+  registros: number;
+  ftds: number;
+  qftds: number;
+}
+
 interface AdminUserModalProps {
   user: User;
   isOpen: boolean;
@@ -59,7 +72,7 @@ export default function AdminUserModal({
   const [selectedHouse, setSelectedHouse] = useState(globalSelectedHouse);
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [editDate, setEditDate] = useState<string | undefined>();
-  const [editData, setEditData] = useState<any>();
+  const [editData, setEditData] = useState<EditDataPoint | undefined>();
   const [affiliateLink, setAffiliateLink] = useState("");
   const [savingLink, setSavingLink] = useState(false);
   const [linkMessage, setLinkMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
@@ -250,7 +263,7 @@ export default function AdminUserModal({
     }
   }, [selectedPeriod, isOpen]);
 
-  const handleChartClick = (data: any) => {
+  const handleChartClick = (data: ChartDataPoint) => {
     const snapshot = snapshots.find(s => {
       const sDate = new Date(s.date).toISOString().split('T')[0];
       const chartDate = data.date.toISOString().split('T')[0];

@@ -41,6 +41,13 @@ const getCurrentYear = () => new Date().getFullYear();
 const getCurrentMonth = () => new Date().getMonth() + 1;
 const getCurrentDay = () => new Date().getDate();
 
+interface DailySnapshot {
+  date: string;
+  registros: number;
+  ftds: number;
+  qftds: number;
+}
+
 export default function AdminEditSnapshotModal({
   userId,
   houseId,
@@ -79,7 +86,7 @@ export default function AdminEditSnapshotModal({
 
       if (response.ok) {
         const data = await response.json();
-        const snapshot = data.snapshots?.find((s: any) => {
+        const snapshot = data.snapshots?.find((s: DailySnapshot) => {
           const sDate = new Date(s.date);
           const sDay = String(sDate.getUTCDate()).padStart(2, "0");
           const sMonth = String(sDate.getUTCMonth() + 1).padStart(2, "0");
@@ -219,9 +226,9 @@ export default function AdminEditSnapshotModal({
         body: JSON.stringify({
           houseId,
           date: snapshotDate,
-          registros: registros ? parseInt(registros as any) : 0,
-          ftds: ftds ? parseInt(ftds as any) : 0,
-          qftds: qftds ? parseInt(qftds as any) : 0,
+          registros: registros ? parseInt(registros as string) : 0,
+          ftds: ftds ? parseInt(ftds as string) : 0,
+          qftds: qftds ? parseInt(qftds as string) : 0,
         }),
       });
 
