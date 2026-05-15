@@ -29,11 +29,17 @@ export default function AdminPanel() {
   const [displayLogoUrl, setDisplayLogoUrl] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [uploadMessage, setUploadMessage] = useState("");
+  const [totalResults, setTotalResults] = useState(0);
 
   useEffect(() => {
     fetchAllUsers();
     setDisplayLogoUrl(contextLogoUrl);
   }, [contextLogoUrl]);
+
+  useEffect(() => {
+    // Reset to page 1 when search term changes
+    setCurrentPage(1);
+  }, [searchTerm]);
 
 
   const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -85,21 +91,66 @@ export default function AdminPanel() {
     }
   };
 
-  const filteredUsers = users.filter(
-    (user) =>
-      user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      user.email.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  // If there's a search term, use server-side search
+  // Otherwise use local filtering for performance
+  const filteredUsers = searchTerm
+    ? users // When searching, users come from server-side search
+    : users.filter(
+        (user) =>
+          user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          user.email.toLowerCase().includes(searchTerm.toLowerCase())
+      );
 
-  const totalPages = Math.ceil(filteredUsers.length / ITEMS_PER_PAGE);
-  const paginatedUsers = filteredUsers.slice(
-    (currentPage - 1) * ITEMS_PER_PAGE,
-    currentPage * ITEMS_PER_PAGE
-  );
+  const totalPages = searchTerm
+    ? Math.ceil(totalResults / ITEMS_PER_PAGE)
+    : Math.ceil(filteredUsers.length / ITEMS_PER_PAGE);
 
-  const handleSearchChange = (value: string) => {
+  const paginatedUsers = searchTerm
+    ? filteredUsers // Already paginated from server
+    : filteredUsers.slice(
+        (currentPage - 1) * ITEMS_PER_PAGE,
+        currentPage * ITEMS_PER_PAGE
+      );
+
+  const handleSearchChange = async (value: string) => {
     setSearchTerm(value);
     setCurrentPage(1);
+
+    if (value.trim()) {
+      // Search on server when there's a query
+      try {
+        const response = await fetch(
+          `/api/admin/users/search?q=${encodeURIComponent(value)}&page=1`
+        );
+        if (response.ok) {
+          const data = await response.json();
+          setUsers(data.users);
+          setTotalResults(data.total);
+        }
+      } catch (error) {
+        console.error("Error searching users:", error);
+      }
+    }
+  };
+
+  const handlePageChange = async (newPage: number) => {
+    setCurrentPage(newPage);
+
+    if (searchTerm.trim()) {
+      // If searching, fetch new page from server
+      try {
+        const response = await fetch(
+          `/api/admin/users/search?q=${encodeURIComponent(searchTerm)}&page=${newPage}`
+        );
+        if (response.ok) {
+          const data = await response.json();
+          setUsers(data.users);
+          setTotalResults(data.total);
+        }
+      } catch (error) {
+        console.error("Error fetching search results:", error);
+      }
+    }
   };
 
   const handleSelectUser = (user: User) => {
@@ -240,7 +291,7 @@ export default function AdminPanel() {
             {totalPages > 1 && filteredUsers.length > 0 && (
               <div className="flex items-center justify-center gap-2 pt-4 border-t" style={{ borderColor: theme.colors.primary }}>
                 <button
-                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                  onClick={() => handlePageChange(Math.max(1, currentPage - 1))}
                   disabled={currentPage === 1}
                   className="px-3 py-1 text-sm rounded border disabled:opacity-50 disabled:cursor-not-allowed hover:bg-zinc-800 transition cursor-pointer"
                   style={{ borderColor: theme.colors.primary, color: theme.colors.primary }}
@@ -251,7 +302,7 @@ export default function AdminPanel() {
                   {currentPage} de {totalPages}
                 </span>
                 <button
-                  onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                  onClick={() => handlePageChange(Math.min(totalPages, currentPage + 1))}
                   disabled={currentPage === totalPages}
                   className="px-3 py-1 text-sm rounded border disabled:opacity-50 disabled:cursor-not-allowed hover:bg-zinc-800 transition"
                   style={{ borderColor: theme.colors.primary, color: theme.colors.primary }}

@@ -274,7 +274,7 @@ export default function HousesManagement() {
               <p>Nenhuma casa de aposta criada ainda</p>
             </div>
           ) : (
-            <div className="space-y-2 max-h-96 overflow-y-auto">
+            <div className="space-y-2 max-h-[800px] overflow-y-auto">
               {houses.map((house) => (
                 <div
                   key={house.id}
