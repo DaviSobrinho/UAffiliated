@@ -26,7 +26,7 @@ export async function PUT(
       return NextResponse.json({ error: "No fields to update" }, { status: 400 });
     }
 
-    const updateData: any = {};
+    const updateData: Partial<{ color: string; name: string }> = {};
     if (color) updateData.color = color;
     if (name) updateData.name = name;
 
