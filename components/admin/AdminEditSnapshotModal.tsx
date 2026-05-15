@@ -77,9 +77,14 @@ export default function AdminEditSnapshotModal({
 
       if (response.ok) {
         const data = await response.json();
-        const snapshot = data.snapshots?.find(
-          (s: any) => new Date(s.date).toISOString().split("T")[0] === snapshotDate
-        );
+        const snapshot = data.snapshots?.find((s: any) => {
+          const sDate = new Date(s.date);
+          const sDay = String(sDate.getDate()).padStart(2, "0");
+          const sMonth = String(sDate.getMonth() + 1).padStart(2, "0");
+          const sYear = sDate.getFullYear();
+          const sDateStr = `${sYear}-${sMonth}-${sDay}`;
+          return sDateStr === snapshotDate;
+        });
 
         if (snapshot) {
           setRegistros(snapshot.registros);

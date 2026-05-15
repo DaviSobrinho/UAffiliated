@@ -41,11 +41,9 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     const monthNum = parseInt(month);
     const yearNum = parseInt(year);
 
-    // Get first and last day of month
-    const firstDay = new Date(yearNum, monthNum - 1, 1);
-    const lastDay = new Date(yearNum, monthNum, 0);
-    firstDay.setHours(0, 0, 0, 0);
-    lastDay.setHours(23, 59, 59, 999);
+    // Get first and last day of month (in UTC date format)
+    const firstDay = new Date(`${yearNum}-${String(monthNum).padStart(2, "0")}-01T00:00:00Z`);
+    const lastDay = new Date(`${yearNum}-${String(monthNum).padStart(2, "0")}-${String(new Date(yearNum, monthNum, 0).getDate()).padStart(2, "0")}T23:59:59Z`);
 
     const snapshots = await prisma.dailySnapshot.findMany({
       where: {
@@ -104,9 +102,8 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       return NextResponse.json({ error: "Dados de casa não encontrados para este usuário" }, { status: 404 });
     }
 
-    // Parse date and calculate revenue using integer arithmetic (cents)
-    const snapshotDate = new Date(date);
-    snapshotDate.setHours(0, 0, 0, 0);
+    // Parse date in UTC format to avoid timezone issues
+    const snapshotDate = new Date(`${date}T00:00:00Z`);
 
     const finalQftds = qftds !== undefined ? qftds : 0;
     // Convert CPA to cents (integer), calculate, then convert back to decimal
@@ -171,8 +168,7 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
       return NextResponse.json({ error: "Casa não encontrada" }, { status: 404 });
     }
 
-    const snapshotDate = new Date(date);
-    snapshotDate.setHours(0, 0, 0, 0);
+    const snapshotDate = new Date(`${date}T00:00:00Z`);
 
     await prisma.dailySnapshot.delete({
       where: {
