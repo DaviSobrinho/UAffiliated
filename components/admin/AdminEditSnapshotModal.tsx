@@ -67,9 +67,11 @@ export default function AdminEditSnapshotModal({
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
   const [waitingForRefresh, setWaitingForRefresh] = useState(false);
+  const [loadingSnapshot, setLoadingSnapshot] = useState(false);
 
   const checkAndLoadSnapshot = async (day: number, month: number, year: number) => {
     try {
+      setLoadingSnapshot(true);
       const snapshotDate = `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
       const response = await fetch(
         `/api/admin/users/${userId}/snapshot?houseId=${houseId}&month=${month}&year=${year}`
@@ -103,6 +105,8 @@ export default function AdminEditSnapshotModal({
       }
     } catch (err) {
       console.error("Erro ao verificar snapshot:", err);
+    } finally {
+      setLoadingSnapshot(false);
     }
   };
 
@@ -117,6 +121,7 @@ export default function AdminEditSnapshotModal({
         setFtds(editData.ftds);
         setQftds(editData.qftds);
         setIsEditing(true);
+        setLoadingSnapshot(false);
       } else {
         setSelectedDay(getCurrentDay());
         setSelectedMonth(getCurrentMonth());
@@ -125,6 +130,7 @@ export default function AdminEditSnapshotModal({
         setFtds("");
         setQftds("");
         setIsEditing(false);
+        setLoadingSnapshot(true);
       }
       setError("");
       setSuccess("");
@@ -357,7 +363,8 @@ export default function AdminEditSnapshotModal({
                 min="0"
                 value={registros}
                 onChange={(e) => setRegistros(e.target.value ? parseInt(e.target.value) : "")}
-                className="w-full px-4 py-2 bg-zinc-800 border rounded-lg text-white focus:outline-none focus:ring-2 transition"
+                disabled={loadingSnapshot}
+                className="w-full px-4 py-2 bg-zinc-800 border rounded-lg text-white focus:outline-none focus:ring-2 transition disabled:opacity-50 disabled:cursor-not-allowed"
                 style={{
                   borderColor: theme.colors.primary,
                   "--tw-ring-color": theme.colors.primary,
@@ -372,7 +379,8 @@ export default function AdminEditSnapshotModal({
                 min="0"
                 value={ftds}
                 onChange={(e) => setFtds(e.target.value ? parseInt(e.target.value) : "")}
-                className="w-full px-4 py-2 bg-zinc-800 border rounded-lg text-white focus:outline-none focus:ring-2 transition"
+                disabled={loadingSnapshot}
+                className="w-full px-4 py-2 bg-zinc-800 border rounded-lg text-white focus:outline-none focus:ring-2 transition disabled:opacity-50 disabled:cursor-not-allowed"
                 style={{
                   borderColor: theme.colors.primary,
                   "--tw-ring-color": theme.colors.primary,
@@ -387,7 +395,8 @@ export default function AdminEditSnapshotModal({
                 min="0"
                 value={qftds}
                 onChange={(e) => setQftds(e.target.value ? parseInt(e.target.value) : "")}
-                className="w-full px-4 py-2 bg-zinc-800 border rounded-lg text-white focus:outline-none focus:ring-2 transition"
+                disabled={loadingSnapshot}
+                className="w-full px-4 py-2 bg-zinc-800 border rounded-lg text-white focus:outline-none focus:ring-2 transition disabled:opacity-50 disabled:cursor-not-allowed"
                 style={{
                   borderColor: theme.colors.primary,
                   "--tw-ring-color": theme.colors.primary,
@@ -400,14 +409,14 @@ export default function AdminEditSnapshotModal({
           <div className="flex flex-col sm:flex-row gap-3 pt-4 border-t" style={{ borderColor: theme.colors.primary }}>
             <button
               type="submit"
-              disabled={loading}
-              className="flex-1 py-2 rounded-lg text-white font-medium transition border hover:bg-zinc-800/50 disabled:opacity-50 cursor-pointer"
+              disabled={loading || loadingSnapshot}
+              className="flex-1 py-2 rounded-lg text-white font-medium transition border hover:bg-zinc-800/50 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
               style={{
                 borderColor: theme.colors.primary,
-                boxShadow: `0 0 12px ${theme.colors.primary}30`,
+                boxShadow: loadingSnapshot || loading ? "none" : `0 0 12px ${theme.colors.primary}30`,
               }}
             >
-              {loading ? "Salvando..." : "Salvar"}
+              {loadingSnapshot ? "Carregando..." : loading ? "Salvando..." : "Salvar"}
             </button>
             <button
               type="button"
