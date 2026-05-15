@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { verifyToken } from "@/lib/auth";
+import { resolveHouseId } from "@/lib/house-utils";
 
-async function isAdmin(token: string): Promise<boolean> {
+function isAdmin(token: string | undefined): boolean {
   const decoded = verifyToken(token);
   return decoded?.role === "ADMIN";
 }
@@ -21,15 +22,20 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     }
 
     const { searchParams } = new URL(request.url);
-    const houseId = searchParams.get("houseId");
+    const houseNameOrId = searchParams.get("houseId");
     const month = searchParams.get("month");
     const year = searchParams.get("year");
 
-    if (!houseId || !month || !year) {
+    if (!houseNameOrId || !month || !year) {
       return NextResponse.json(
         { error: "houseId, month e year são obrigatórios" },
         { status: 400 }
       );
+    }
+
+    const houseId = await resolveHouseId(houseNameOrId);
+    if (!houseId) {
+      return NextResponse.json({ error: "Casa não encontrada" }, { status: 404 });
     }
 
     const monthNum = parseInt(month);
@@ -69,14 +75,19 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
     }
 
-    if (!(await isAdmin(token))) {
+    if (!isAdmin(token)) {
       return NextResponse.json({ error: "Apenas admin pode realizar esta ação" }, { status: 403 });
     }
 
-    const { houseId, date, registros, ftds, qftds } = await request.json();
+    const { houseId: houseNameOrId, date, registros, ftds, qftds } = await request.json();
 
-    if (!houseId || !date) {
+    if (!houseNameOrId || !date) {
       return NextResponse.json({ error: "houseId e date são obrigatórios" }, { status: 400 });
+    }
+
+    const houseId = await resolveHouseId(houseNameOrId);
+    if (!houseId) {
+      return NextResponse.json({ error: "Casa não encontrada" }, { status: 404 });
     }
 
     // Fetch user's house data to get CPA
@@ -133,5 +144,49 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   } catch (error) {
     console.error(error);
     return NextResponse.json({ error: "Erro ao salvar snapshot" }, { status: 500 });
+  }
+}
+
+export async function DELETE(request: NextRequest, { params }: { params: Promise<{ userId: string }> }) {
+  const { userId } = await params;
+  try {
+    const token = request.cookies.get("auth")?.value;
+
+    if (!token) {
+      return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
+    }
+
+    if (!isAdmin(token)) {
+      return NextResponse.json({ error: "Apenas admin pode realizar esta ação" }, { status: 403 });
+    }
+
+    const { houseId: houseNameOrId, date } = await request.json();
+
+    if (!houseNameOrId || !date) {
+      return NextResponse.json({ error: "houseId e date são obrigatórios" }, { status: 400 });
+    }
+
+    const houseId = await resolveHouseId(houseNameOrId);
+    if (!houseId) {
+      return NextResponse.json({ error: "Casa não encontrada" }, { status: 404 });
+    }
+
+    const snapshotDate = new Date(date);
+    snapshotDate.setHours(0, 0, 0, 0);
+
+    await prisma.dailySnapshot.delete({
+      where: {
+        userId_houseId_date: {
+          userId,
+          houseId,
+          date: snapshotDate,
+        },
+      },
+    });
+
+    return NextResponse.json({ success: true }, { status: 200 });
+  } catch (error) {
+    console.error(error);
+    return NextResponse.json({ error: "Erro ao remover snapshot" }, { status: 500 });
   }
 }

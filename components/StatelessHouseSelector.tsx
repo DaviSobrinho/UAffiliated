@@ -9,12 +9,14 @@ interface StatelessHouseSelectorProps {
   value: string;
   onChange: (houseId: string) => void;
   primaryColor: string;
+  disabled?: boolean;
 }
 
 export default function StatelessHouseSelector({
   value,
   onChange,
   primaryColor,
+  disabled = false,
 }: StatelessHouseSelectorProps) {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -36,11 +38,12 @@ export default function StatelessHouseSelector({
     <div ref={dropdownRef} className="relative w-full">
       <button
         type="button"
-        onClick={() => setIsOpen(!isOpen)}
-        className="w-full flex items-center justify-between gap-3 px-3 py-2.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 border transition cursor-pointer"
+        onClick={() => !disabled && setIsOpen(!isOpen)}
+        disabled={disabled}
+        className="w-full flex items-center justify-between gap-3 px-3 py-2.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 border transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
         style={{
           borderColor: primaryColor,
-          boxShadow: `0 0 12px ${primaryColor}20`,
+          boxShadow: disabled ? "none" : `0 0 12px ${primaryColor}20`,
         }}
       >
         <div className="flex-1 flex items-center gap-3 min-w-0">

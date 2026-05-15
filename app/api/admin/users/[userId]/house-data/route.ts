@@ -1,36 +1,39 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { verifyToken } from "@/lib/auth";
+import { resolveHouseId } from "@/lib/house-utils";
 
 function isAdmin(token: string | undefined): boolean {
-  if (!token) return false;
-
   const decoded = verifyToken(token);
   return decoded?.role === "ADMIN";
 }
 
-export async function GET(
-  request: NextRequest,
-  { params }: { params: Promise<{ userId: string }> }
-) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ userId: string }> }) {
+  const { userId } = await params;
   try {
     const token = request.cookies.get("auth")?.value;
-    if (!(await isAdmin(token))) {
-      return NextResponse.json({ error: "Acesso negado" }, { status: 403 });
+
+    if (!token) {
+      return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
+    }
+
+    if (!isAdmin(token)) {
+      return NextResponse.json({ error: "Apenas admin pode realizar esta ação" }, { status: 403 });
     }
 
     const { searchParams } = new URL(request.url);
-    const houseId = searchParams.get("houseId");
-    const { userId } = await params;
+    const houseNameOrId = searchParams.get("houseId");
 
-    if (!houseId) {
-      return NextResponse.json(
-        { error: "Casa de aposta é obrigatória" },
-        { status: 400 }
-      );
+    if (!houseNameOrId) {
+      return NextResponse.json({ error: "houseId é obrigatório" }, { status: 400 });
     }
 
-    const houseData = await prisma.userHouseData.findUnique({
+    const houseId = await resolveHouseId(houseNameOrId);
+    if (!houseId) {
+      return NextResponse.json({ error: "Casa não encontrada" }, { status: 404 });
+    }
+
+    const userHouseData = await prisma.userHouseData.findUnique({
       where: {
         userId_houseId: {
           userId,
@@ -39,133 +42,88 @@ export async function GET(
       },
     });
 
-    return NextResponse.json({ houseData }, { status: 200 });
+    if (!userHouseData) {
+      return NextResponse.json({ error: "Dados de casa não encontrados" }, { status: 404 });
+    }
+
+    return NextResponse.json({ userHouseData }, { status: 200 });
   } catch (error) {
-    console.error(error);
-    return NextResponse.json(
-      { error: "Erro interno do servidor" },
-      { status: 500 }
-    );
+    console.error("[HOUSE-DATA] Erro:", error);
+    return NextResponse.json({ error: "Erro ao buscar dados da casa" }, { status: 500 });
   }
 }
 
-export async function POST(
-  request: NextRequest,
-  { params }: { params: Promise<{ userId: string }> }
-) {
+export async function PUT(request: NextRequest, { params }: { params: Promise<{ userId: string }> }) {
+  const { userId } = await params;
   try {
+    console.log("[HOUSE-DATA-PUT] Iniciando...", { userId });
+
     const token = request.cookies.get("auth")?.value;
-    if (!(await isAdmin(token))) {
-      return NextResponse.json({ error: "Acesso negado" }, { status: 403 });
+
+    if (!token) {
+      console.log("[HOUSE-DATA-PUT] Sem token");
+      return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
     }
 
-    const { houseId, cpa, affiliateLink, registros, ftds, qftds } =
-      await request.json();
-    const { userId } = await params;
-
-    if (!houseId || cpa === undefined || !affiliateLink) {
-      return NextResponse.json(
-        { error: "Campos obrigatórios faltando" },
-        { status: 400 }
-      );
+    if (!isAdmin(token)) {
+      console.log("[HOUSE-DATA-PUT] Não é admin");
+      return NextResponse.json({ error: "Apenas admin pode realizar esta ação" }, { status: 403 });
     }
 
-    if (cpa < 5) {
-      return NextResponse.json(
-        { error: "CPA deve ser de no mínimo 5" },
-        { status: 400 }
-      );
+    const body = await request.json();
+    console.log("[HOUSE-DATA-PUT] Body:", body);
+
+    const { houseId: houseNameOrId, affiliateLink } = body;
+
+    if (!houseNameOrId) {
+      console.log("[HOUSE-DATA-PUT] Sem houseId");
+      return NextResponse.json({ error: "houseId é obrigatório" }, { status: 400 });
     }
 
-    const houseData = await prisma.userHouseData.create({
-      data: {
-        userId,
-        houseId,
-        cpa: parseFloat(cpa.toString()),
-        affiliateLink,
-        registros: registros || 0,
-        ftds: ftds || 0,
-        qftds: qftds || 0,
-      },
-    });
-
-    return NextResponse.json({ houseData }, { status: 201 });
-  } catch (error: unknown) {
-    console.error(error);
-
-    if (error instanceof Error && "code" in error && error.code === "P2002") {
-      return NextResponse.json(
-        { error: "Dados já existem para este usuário e casa" },
-        { status: 409 }
-      );
-    }
-
-    return NextResponse.json(
-      { error: "Erro interno do servidor" },
-      { status: 500 }
-    );
-  }
-}
-
-export async function PUT(
-  request: NextRequest,
-  { params }: { params: Promise<{ userId: string }> }
-) {
-  try {
-    const token = request.cookies.get("auth")?.value;
-    if (!(await isAdmin(token))) {
-      return NextResponse.json({ error: "Acesso negado" }, { status: 403 });
-    }
-
-    const { houseId, cpa, affiliateLink, registros, ftds, qftds } =
-      await request.json();
-    const { userId } = await params;
+    const houseId = await resolveHouseId(houseNameOrId);
+    console.log("[HOUSE-DATA-PUT] houseId resolvido:", { houseNameOrId, houseId });
 
     if (!houseId) {
-      return NextResponse.json(
-        { error: "Casa de aposta é obrigatória" },
-        { status: 400 }
-      );
+      console.log("[HOUSE-DATA-PUT] Casa não encontrada");
+      return NextResponse.json({ error: "Casa não encontrada" }, { status: 404 });
     }
 
-    if (cpa !== undefined && cpa < 5) {
-      return NextResponse.json(
-        { error: "CPA deve ser de no mínimo 5" },
-        { status: 400 }
-      );
+    // Check if link is unique or belongs to this user
+    if (affiliateLink) {
+      const existingLink = await prisma.userHouseData.findFirst({
+        where: {
+          affiliateLink,
+          OR: [
+            { userId: { not: userId } },
+            { houseId: { not: houseId } },
+          ],
+        },
+      });
+
+      if (existingLink) {
+        console.log("[HOUSE-DATA-PUT] Link já em uso");
+        return NextResponse.json({ error: "Este link já está em uso por outro usuário" }, { status: 409 });
+      }
     }
 
-    const updateData: any = {};
-    if (cpa !== undefined) updateData.cpa = parseFloat(cpa.toString());
-    if (affiliateLink) updateData.affiliateLink = affiliateLink;
-    if (registros !== undefined) updateData.registros = registros;
-    if (ftds !== undefined) updateData.ftds = ftds;
-    if (qftds !== undefined) updateData.qftds = qftds;
+    console.log("[HOUSE-DATA-PUT] Atualizando UserHouseData...", { userId, houseId, affiliateLink });
 
-    const houseData = await prisma.userHouseData.update({
+    const userHouseData = await prisma.userHouseData.update({
       where: {
         userId_houseId: {
           userId,
           houseId,
         },
       },
-      data: updateData,
+      data: {
+        affiliateLink: affiliateLink || "",
+      },
     });
 
-    return NextResponse.json({ houseData }, { status: 200 });
-  } catch (error: unknown) {
-    console.error(error);
-
-    if (error instanceof Error && "code" in error && error.code === "P2025") {
-      return NextResponse.json(
-        { error: "Dados não encontrados" },
-        { status: 404 }
-      );
-    }
-
-    return NextResponse.json(
-      { error: "Erro interno do servidor" },
-      { status: 500 }
-    );
+    console.log("[HOUSE-DATA-PUT] ✅ Atualizado com sucesso");
+    return NextResponse.json({ userHouseData }, { status: 200 });
+  } catch (error) {
+    console.error("[HOUSE-DATA-PUT] ❌ Erro:", error);
+    return NextResponse.json({ error: "Erro ao atualizar dados da casa", details: String(error) }, { status: 500 });
   }
 }

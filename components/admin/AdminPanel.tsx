@@ -76,7 +76,7 @@ export default function AdminPanel() {
       const response = await fetch("/api/admin/users");
       if (response.ok) {
         const data = await response.json();
-        setUsers(data.users.slice(0, TOTAL_LIMIT));
+        setUsers(data.users);
       }
     } catch (error) {
       console.error("Error fetching users:", error);
