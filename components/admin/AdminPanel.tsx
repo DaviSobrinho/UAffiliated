@@ -130,6 +130,10 @@ export default function AdminPanel() {
       } catch (error) {
         console.error("Error searching users:", error);
       }
+    } else {
+      // When search is cleared, reload all users
+      await fetchAllUsers();
+      setTotalResults(0);
     }
   };
 
