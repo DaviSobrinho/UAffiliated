@@ -86,12 +86,15 @@ export function HouseProvider({ children }: { children: React.ReactNode }) {
   const { house: initialHouse, theme: initialTheme } = getSavedHouseAndTheme();
   const [selectedHouse, setSelectedHouse] = useState<string>(initialHouse);
   const [theme, setTheme] = useState<HouseTheme>(initialTheme);
+  const [initialized, setInitialized] = useState(false);
 
+  // Effect 1: Apply theme colors on mount
   useEffect(() => {
-    // Apply initial theme colors immediately
     applyThemeColors(initialTheme);
+  }, []);
 
-    // For non-predefined houses (UUIDs), fetch and update
+  // Effect 2: Load dynamic house theme if needed (for UUID houses)
+  useEffect(() => {
     const saved = localStorage.getItem("selectedHouse");
     if (saved && !HOUSE_THEMES[saved]) {
       getThemeForHouse(saved).then((t) => {
@@ -99,8 +102,12 @@ export function HouseProvider({ children }: { children: React.ReactNode }) {
         applyThemeColors(t);
       });
     }
+  }, []);
 
-    // If no house is selected (default theme), fetch houses and select first one
+  // Effect 3: Auto-select first house if none is selected (only once on mount)
+  useEffect(() => {
+    if (initialized) return;
+
     if (initialHouse === "default") {
       const fetchAndSelectFirstHouse = async () => {
         try {
@@ -119,12 +126,16 @@ export function HouseProvider({ children }: { children: React.ReactNode }) {
           }
         } catch (err) {
           console.error("Error fetching houses for default selection:", err);
+        } finally {
+          setInitialized(true);
         }
       };
 
       fetchAndSelectFirstHouse();
+    } else {
+      setInitialized(true);
     }
-  }, [initialTheme, initialHouse]);
+  }, [initialized]);
 
   const applyThemeColors = (themeToApply: HouseTheme) => {
     const root = document.documentElement;
