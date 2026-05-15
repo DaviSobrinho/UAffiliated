@@ -12,6 +12,7 @@ import TimeframeSelector from "@/components/TimeframeSelector";
 import AffiliateLinksSection from "@/components/dashboard/AffiliateLinksSection";
 import AffiliateFilter from "@/components/dashboard/AffiliateFilter";
 import { useHouse } from "@/context/HouseContext";
+import { useBalance } from "@/context/BalanceContext";
 import { SkeletonBox, SkeletonLine } from "@/components/Skeleton";
 import ReferralDialog from "@/components/dashboard/ReferralDialog";
 import { useEffect, useState } from "react";
@@ -43,6 +44,7 @@ const formatCPA = (value: number | string | null | undefined): string => {
 
 export default function DashboardPage() {
     const { selectedHouse } = useHouse();
+    const { balance, refreshBalance } = useBalance();
     const [user, setUser] = useState<User | null>(null);
     const [viewingUser] = useState<{ id: string; name: string } | null>(null);
     const [timeframe, setTimeframe] = useState("7d");
@@ -240,6 +242,10 @@ export default function DashboardPage() {
                     setMeuRev(formatCPA(data.performance.meuRev));
                     setComissaoEquipe(formatCPA(data.performance.comissaoEquipe));
                     setTotalProprio(formatCPA(data.performance.totalProprio));
+
+                    if (viewingUser?.id) {
+                        await refreshBalance(viewingUser.id, selectedHouse);
+                    }
                 } else {
                     setHouseData(null);
                     setMyRegistros(0);
@@ -271,6 +277,10 @@ export default function DashboardPage() {
                     setMeuRev(formatCPA(data.performance.meuRev));
                     setComissaoEquipe(formatCPA(data.performance.comissaoEquipe));
                     setTotalProprio(formatCPA(data.performance.totalProprio));
+
+                    if (user?.id) {
+                        await refreshBalance(user.id, selectedHouse);
+                    }
                 } else {
                     setHouseData(null);
                     setMyRegistros(0);
@@ -333,7 +343,7 @@ export default function DashboardPage() {
                         <>
                             <BalanceCard
                                 title="Seu saldo disponível"
-                                amount="R$ 0,00"
+                                amount={balance}
                                 subtitle="Disponível para saque"
                                 variant="primary"
                             />

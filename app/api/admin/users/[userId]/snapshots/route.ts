@@ -61,8 +61,6 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     const endDateObj = new Date(now);
     endDateObj.setHours(23, 59, 59, 999);
 
-    console.log("[SNAPSHOTS] Buscando para userId:", userId, "houseId:", houseId, "timeframe:", timeframe, "startDate:", startDateObj.toISOString(), "endDate:", endDateObj.toISOString());
-
     const snapshots = await prisma.dailySnapshot.findMany({
       where: {
         userId,
@@ -74,8 +72,6 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       },
       orderBy: { date: "asc" },
     });
-
-    console.log("[SNAPSHOTS] Encontrados:", snapshots.length, "registros");
 
     return NextResponse.json({ snapshots }, { status: 200 });
   } catch (error) {

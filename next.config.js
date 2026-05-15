@@ -1,6 +1,3 @@
-console.log("[NEXT-CONFIG] 🚀 Next.js config carregando...");
-const startTime = Date.now();
-
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
@@ -18,5 +15,4 @@ const nextConfig = {
   },
 };
 
-console.log(`[NEXT-CONFIG] ✅ Config carregado em ${Date.now() - startTime}ms`);
 module.exports = nextConfig;

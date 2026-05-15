@@ -3,9 +3,11 @@
 import { useState, useEffect, useRef } from "react";
 import { X, Plus } from "lucide-react";
 import { useHouse } from "@/context/HouseContext";
+import { useBalance } from "@/context/BalanceContext";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import StatelessHouseSelector from "@/components/StatelessHouseSelector";
 import AdminEditSnapshotModal from "./AdminEditSnapshotModal";
+import CurrencyInput from "@/components/CurrencyInput";
 
 interface User {
   id: string;
@@ -50,6 +52,7 @@ export default function AdminUserModal({
   onUpdated,
 }: AdminUserModalProps) {
   const { theme, selectedHouse: globalSelectedHouse, setSelectedHouse: setGlobalSelectedHouse } = useHouse();
+  const { refreshBalance } = useBalance();
   const [snapshots, setSnapshots] = useState<DailySnapshot[]>([]);
   const [loading, setLoading] = useState(false);
   const [selectedPeriod, setSelectedPeriod] = useState("30d");
@@ -77,7 +80,9 @@ export default function AdminUserModal({
       if (response.ok) {
         const data = await response.json();
         setAffiliateLink(data.userHouseData?.affiliateLink || "");
-        setBalance(String(data.userHouseData?.balance || "0"));
+        const reais = parseFloat(data.userHouseData?.balance || "0");
+        const centavos = Math.round(reais * 100);
+        setBalance(String(centavos));
       } else {
         setAffiliateLink("");
         setBalance("0");
@@ -126,24 +131,29 @@ export default function AdminUserModal({
       setSavingBalance(true);
       setBalanceMessage(null);
 
+      const centavos = parseInt(balance || "0");
+      const reais = centavos / 100;
+
       const response = await fetch(`/api/admin/users/${user.id}/house-data`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           houseId: selectedHouse,
-          balance: parseFloat(balance),
+          balance: reais,
         }),
       });
 
       if (response.ok) {
         console.log("[BALANCE] Saldo salvo com sucesso");
         setBalanceMessage({ type: "success", text: "Saldo atualizado com sucesso!" });
+        refreshBalance(user.id, selectedHouse);
         setTimeout(() => setBalanceMessage(null), 3000);
       } else {
         const errorData = await response.json();
         const errorMsg = errorData.error || "Erro ao salvar saldo";
-        console.error("[BALANCE] Erro ao salvar saldo:", response.status, errorMsg);
-        setBalanceMessage({ type: "error", text: errorMsg });
+        const details = errorData.details || "";
+        console.error("[BALANCE] Erro ao salvar saldo:", response.status, errorMsg, details);
+        setBalanceMessage({ type: "error", text: errorMsg + (details ? ` - ${details}` : "") });
       }
     } catch (err) {
       console.error("[BALANCE] Erro ao salvar saldo:", err);
@@ -350,19 +360,13 @@ export default function AdminUserModal({
             <div>
               <label className="block text-sm text-zinc-400 mb-2 font-medium">Saldo Atual</label>
               <div className="flex flex-col sm:flex-row gap-2">
-                <input
-                  type="number"
-                  step="0.01"
-                  min="0"
+                <CurrencyInput
                   value={balance}
-                  onChange={(e) => setBalance(e.target.value)}
-                  placeholder="0.00"
-                  className="flex-1 px-4 py-2 bg-zinc-800 border rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:ring-2 transition text-sm"
-                  style={{
-                    borderColor: theme.colors.primary,
-                    "--tw-ring-color": theme.colors.primary,
-                  } as React.CSSProperties}
+                  onChange={setBalance}
+                  primaryColor={theme.colors.primary}
+                  disabled={savingBalance}
                 />
+
                 <button
                   onClick={saveBalance}
                   disabled={savingBalance}

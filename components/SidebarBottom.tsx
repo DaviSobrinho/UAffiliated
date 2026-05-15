@@ -3,10 +3,21 @@
 import { LogOut } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useHouse } from "@/context/HouseContext";
+import { useBalance } from "@/context/BalanceContext";
+import { useEffect } from "react";
 
 export default function SidebarBottom() {
   const router = useRouter();
-  const { theme } = useHouse();
+  const { theme, selectedHouse } = useHouse();
+  const { balance, refreshBalance } = useBalance();
+
+  useEffect(() => {
+    const user = localStorage.getItem("user");
+    if (user && selectedHouse) {
+      const userData = JSON.parse(user);
+      refreshBalance(userData.id, selectedHouse);
+    }
+  }, [selectedHouse, refreshBalance]);
 
   const handleLogout = () => {
     localStorage.removeItem("token");
@@ -26,8 +37,9 @@ export default function SidebarBottom() {
           boxShadow: `0 0 15px ${theme.colors.primary}30`,
         }}
       >
-        <p className="text-xs text-zinc-500">Seu Payout</p>
-        <p className="text-white font-bold text-sm">R$ 0 / R$ 100K</p>
+        <p className="text-xs text-zinc-500">Seu saldo disponível</p>
+        <p className="text-white font-bold text-lg">{balance}</p>
+        <p className="text-xs text-zinc-500 mt-1">Disponível para saque</p>
       </div>
 
       <button
