@@ -252,6 +252,7 @@ export default function HousesManagement() {
                     </div>
                     <label className="flex-1">
                       <span className="text-zinc-300 text-xs font-medium block mb-1">Upload Logo</span>
+                      <p className="text-zinc-500 text-xs mb-2">Recomendado: máx 2MB, proporção 16:9 ou quadrada</p>
                       <input
                         type="file"
                         accept="image/*"

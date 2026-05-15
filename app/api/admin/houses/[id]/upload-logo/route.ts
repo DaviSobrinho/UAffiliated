@@ -6,8 +6,9 @@ import { PutObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3";
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params;
   try {
     const token = request.cookies.get("auth")?.value;
     if (!token) {
@@ -20,7 +21,7 @@ export async function POST(
     }
 
     const house = await prisma.house.findUnique({
-      where: { id: params.id },
+      where: { id },
     });
 
     if (!house) {
@@ -81,7 +82,7 @@ export async function POST(
     const logoUrl = `${process.env.R2_PUBLIC_URL}/${fileName}`;
 
     const updatedHouse = await prisma.house.update({
-      where: { id: params.id },
+      where: { id },
       data: { logoUrl },
     });
 

@@ -5,8 +5,9 @@ import { invalidateHouseCache } from "@/lib/house-utils";
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params;
   try {
     const token = request.cookies.get("auth")?.value;
     if (!token) {
@@ -19,7 +20,7 @@ export async function DELETE(
     }
 
     const house = await prisma.house.findUnique({
-      where: { id: params.id },
+      where: { id },
       include: { userHouseData: true },
     });
 
@@ -35,7 +36,7 @@ export async function DELETE(
     }
 
     await prisma.house.delete({
-      where: { id: params.id },
+      where: { id },
     });
 
     invalidateHouseCache();
