@@ -41,6 +41,7 @@ model House {
   name              String     @unique
   logoUrl           String?
   color             String     @default("#3b82f6")
+  order             Int        @default(0)
 
   userHouseData     UserHouseData[]
   dailySnapshots    DailySnapshot[]

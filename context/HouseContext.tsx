@@ -56,20 +56,75 @@ const getThemeForHouse = async (houseId: string): Promise<HouseTheme> => {
   return HOUSE_THEMES.betano;
 };
 
+function getDefaultTheme() {
+  return {
+    id: "default",
+    name: "Padrão",
+    logo: "",
+    colors: {
+      primary: "#FFFFFF",
+      primaryLight: "#F5F5F5",
+      primaryDark: "#E0E0E0",
+      secondary: "#FFFFFF",
+      accent: "#F0F0F0",
+      background: "#0f172a",
+    },
+  };
+}
+
+function getSavedHouseAndTheme() {
+  const saved = localStorage.getItem("selectedHouse");
+  // If saved is a predefined theme ID, use it immediately
+  if (saved && HOUSE_THEMES[saved]) {
+    return { house: saved, theme: getHouseTheme(saved) };
+  }
+
+  return { house: "default", theme: getDefaultTheme() };
+}
+
 export function HouseProvider({ children }: { children: React.ReactNode }) {
-  const [selectedHouse, setSelectedHouse] = useState<string>("betano");
-  const [theme, setTheme] = useState<HouseTheme>(getHouseTheme("betano"));
+  const { house: initialHouse, theme: initialTheme } = getSavedHouseAndTheme();
+  const [selectedHouse, setSelectedHouse] = useState<string>(initialHouse);
+  const [theme, setTheme] = useState<HouseTheme>(initialTheme);
 
   useEffect(() => {
+    // Apply initial theme colors immediately
+    applyThemeColors(initialTheme);
+
+    // For non-predefined houses (UUIDs), fetch and update
     const saved = localStorage.getItem("selectedHouse");
-    if (saved) {
-      setSelectedHouse(saved);
+    if (saved && !HOUSE_THEMES[saved]) {
       getThemeForHouse(saved).then((t) => {
         setTheme(t);
         applyThemeColors(t);
       });
     }
-  }, []);
+
+    // If no house is selected (default theme), fetch houses and select first one
+    if (initialHouse === "default") {
+      const fetchAndSelectFirstHouse = async () => {
+        try {
+          const res = await fetch("/api/admin/houses");
+          if (res.ok) {
+            const data = await res.json();
+            const firstHouse = data.houses?.[0];
+            if (firstHouse) {
+              setSelectedHouse(firstHouse.id);
+              localStorage.setItem("selectedHouse", firstHouse.id);
+
+              const newTheme = await getThemeForHouse(firstHouse.id);
+              setTheme(newTheme);
+              applyThemeColors(newTheme);
+            }
+          }
+        } catch (err) {
+          console.error("Error fetching houses for default selection:", err);
+        }
+      };
+
+      fetchAndSelectFirstHouse();
+    }
+  }, [initialTheme, initialHouse]);
 
   const applyThemeColors = (themeToApply: HouseTheme) => {
     const root = document.documentElement;

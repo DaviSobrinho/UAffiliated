@@ -10,7 +10,7 @@ export async function GET() {
 
     const queryStart = Date.now();
     const houses = await prisma.house.findMany({
-      orderBy: { createdAt: "desc" },
+      orderBy: { order: "asc" },
     });
     console.log(`[HOUSES-GET] ✓ Query em ${Date.now() - queryStart}ms, encontradas ${houses.length} casas`);
 

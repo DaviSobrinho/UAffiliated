@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Trash2 } from "lucide-react";
+import { Trash2, ArrowUp, ArrowDown } from "lucide-react";
 import { useHouse } from "@/context/HouseContext";
 
 interface House {
@@ -22,6 +22,7 @@ export default function HousesManagement() {
   const [uploadingHouseLogo, setUploadingHouseLogo] = useState(false);
   const [editingColor, setEditingColor] = useState<Record<string, string>>({});
   const [savingColor, setSavingColor] = useState(false);
+  const [reordering, setReordering] = useState(false);
 
   useEffect(() => {
     fetchHouses();
@@ -160,6 +161,43 @@ export default function HousesManagement() {
     }
   };
 
+  const moveHouse = async (index: number, direction: "up" | "down") => {
+    if (direction === "up" && index === 0) return;
+    if (direction === "down" && index === houses.length - 1) return;
+
+    const newHouses = [...houses];
+    const targetIndex = direction === "up" ? index - 1 : index + 1;
+    [newHouses[index], newHouses[targetIndex]] = [
+      newHouses[targetIndex],
+      newHouses[index],
+    ];
+
+    setReordering(true);
+    setHouseMessage("");
+
+    try {
+      const res = await fetch("/api/admin/houses/reorder", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ houseIds: newHouses.map((h) => h.id) }),
+      });
+
+      if (res.ok) {
+        setHouses(newHouses);
+        setHouseMessage("✅ Ordem das casas atualizada!");
+        setTimeout(() => setHouseMessage(""), 3000);
+      } else {
+        const data = await res.json();
+        setHouseMessage(`❌ ${data.error}`);
+      }
+    } catch (err) {
+      console.error("Error reordering houses:", err);
+      setHouseMessage("❌ Erro ao reordenar casas");
+    } finally {
+      setReordering(false);
+    }
+  };
+
   return (
     <>
       <div className="space-y-6 md:space-y-8">
@@ -267,13 +305,31 @@ export default function HousesManagement() {
                         <p className="text-zinc-400 text-xs">{editingColor[house.id] || house.color}</p>
                       </div>
                     </div>
-                    <button
-                      onClick={() => handleDeleteHouse(house.id)}
-                      className="p-1 hover:bg-red-500/20 rounded transition text-red-400 hover:text-red-300 shrink-0"
-                      title="Deletar casa"
-                    >
-                      <Trash2 size={16} />
-                    </button>
+                    <div className="flex gap-1 shrink-0">
+                      <button
+                        onClick={() => moveHouse(houses.indexOf(house), "up")}
+                        disabled={reordering || houses.indexOf(house) === 0}
+                        className="p-1 hover:bg-blue-500/20 rounded transition text-blue-400 hover:text-blue-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                        title="Mover para cima"
+                      >
+                        <ArrowUp size={16} />
+                      </button>
+                      <button
+                        onClick={() => moveHouse(houses.indexOf(house), "down")}
+                        disabled={reordering || houses.indexOf(house) === houses.length - 1}
+                        className="p-1 hover:bg-blue-500/20 rounded transition text-blue-400 hover:text-blue-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                        title="Mover para baixo"
+                      >
+                        <ArrowDown size={16} />
+                      </button>
+                      <button
+                        onClick={() => handleDeleteHouse(house.id)}
+                        className="p-1 hover:bg-red-500/20 rounded transition text-red-400 hover:text-red-300"
+                        title="Deletar casa"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
                   </div>
 
                   {/* Logo Upload for House */}
