@@ -214,12 +214,20 @@ export default function AdminUserModal({
 
   const chartData = filterSnapshotsByPeriod()
     .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
-    .map(s => ({
-      date: new Date(s.date),
-      registros: s.registros,
-      ftds: s.ftds,
-      qftds: s.qftds,
-    }));
+    .map(s => {
+      const sDate = new Date(s.date);
+      // Extrair a data em UTC e criar uma data em timezone local com o mesmo dia/mês/ano
+      const year = sDate.getUTCFullYear();
+      const month = sDate.getUTCMonth();
+      const day = sDate.getUTCDate();
+      const localDate = new Date(year, month, day);
+      return {
+        date: localDate,
+        registros: s.registros,
+        ftds: s.ftds,
+        qftds: s.qftds,
+      };
+    });
 
   console.log(`[GRAPH] chartData atualizado com ${chartData.length} pontos, snapshots totais: ${snapshots.length}`);
 

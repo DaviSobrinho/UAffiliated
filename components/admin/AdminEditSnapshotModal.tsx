@@ -79,19 +79,22 @@ export default function AdminEditSnapshotModal({
         const data = await response.json();
         const snapshot = data.snapshots?.find((s: any) => {
           const sDate = new Date(s.date);
-          const sDay = String(sDate.getDate()).padStart(2, "0");
-          const sMonth = String(sDate.getMonth() + 1).padStart(2, "0");
-          const sYear = sDate.getFullYear();
+          const sDay = String(sDate.getUTCDate()).padStart(2, "0");
+          const sMonth = String(sDate.getUTCMonth() + 1).padStart(2, "0");
+          const sYear = sDate.getUTCFullYear();
           const sDateStr = `${sYear}-${sMonth}-${sDay}`;
+          console.log(`[MODAL] Comparando ${snapshotDate} com ${sDateStr} (snapshot: ${s.date})`);
           return sDateStr === snapshotDate;
         });
 
         if (snapshot) {
+          console.log(`[MODAL] ✓ Snapshot encontrado para ${snapshotDate}: ${snapshot.registros} reg, ${snapshot.ftds} ftds, ${snapshot.qftds} qftds`);
           setRegistros(snapshot.registros);
           setFtds(snapshot.ftds);
           setQftds(snapshot.qftds);
           setIsEditing(true);
         } else {
+          console.log(`[MODAL] ✗ Nenhum snapshot encontrado para ${snapshotDate}. Snapshots do mês: ${data.snapshots.length}`);
           setRegistros("");
           setFtds("");
           setQftds("");
