@@ -4,6 +4,7 @@ import { verifyToken } from "@/lib/auth";
 import { resolveHouseId } from "@/lib/house-utils";
 
 function isAdmin(token: string | undefined): boolean {
+  if (!token) return false;
   const decoded = verifyToken(token);
   return decoded?.role === "ADMIN";
 }
