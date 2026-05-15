@@ -52,12 +52,13 @@ export class Logger {
   }
 
   error(message: string, error?: unknown) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
     const entry: LogEntry = {
       timestamp: new Date().toISOString(),
       level: "ERROR",
       module: this.module,
       message,
-      error: (error as any)?.message || String(error),
+      error: errorMessage,
     };
     this.logs.push(entry);
     console.error(this.formatLog(entry));

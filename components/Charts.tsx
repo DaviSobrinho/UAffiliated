@@ -256,10 +256,8 @@ export function FunnelChart({ registros, ftds, qftds }: FunnelChartProps) {
           <Tooltip
             contentStyle={{ backgroundColor: "#1f2937", border: `1px solid ${theme.colors.primary}`, borderRadius: "6px" }}
             labelStyle={{ color: "#fff" }}
-            formatter={(value: unknown, _name: string, props: unknown) => {
-              if (typeof value !== "number") return "";
-              const percentage = getPercentage(value);
-              return [`${value} (${percentage}%)`, (props as any).name];
+            formatter={(value) => {
+              return typeof value === "number" ? value : "";
             }}
             labelFormatter={(label: unknown) => `${label}`}
           />
