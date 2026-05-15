@@ -4,7 +4,6 @@ import { useState, useEffect } from "react";
 import { X, Trash2 } from "lucide-react";
 import { useHouse } from "@/context/HouseContext";
 import StatelessHouseSelector from "@/components/StatelessHouseSelector";
-import Toast from "@/components/Toast";
 import ConfirmDialog from "@/components/ConfirmDialog";
 
 interface AdminEditSnapshotModalProps {
@@ -20,6 +19,7 @@ interface AdminEditSnapshotModalProps {
     qftds: number;
   };
   onLoadingChange?: (loading: boolean) => void;
+  onRefreshComplete?: () => void;
 }
 
 const MONTHS = [
@@ -50,6 +50,7 @@ export default function AdminEditSnapshotModal({
   editDate,
   editData,
   onLoadingChange,
+  onRefreshComplete,
 }: AdminEditSnapshotModalProps) {
   const { theme } = useHouse();
   const [selectedDay, setSelectedDay] = useState(getCurrentDay());
@@ -65,6 +66,7 @@ export default function AdminEditSnapshotModal({
   const [isEditing, setIsEditing] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
+  const [waitingForRefresh, setWaitingForRefresh] = useState(false);
 
   const checkAndLoadSnapshot = async (day: number, month: number, year: number) => {
     try {
@@ -127,6 +129,21 @@ export default function AdminEditSnapshotModal({
     }
   }, [selectedDay, selectedMonth, selectedYear, isOpen]);
 
+  useEffect(() => {
+    if (waitingForRefresh) {
+      const timer = setTimeout(() => {
+        setToast(null);
+        setTimeout(() => {
+          onClose();
+          onLoadingChange?.(false);
+          setWaitingForRefresh(false);
+          setLoading(false);
+        }, 300);
+      }, 1500);
+      return () => clearTimeout(timer);
+    }
+  }, [waitingForRefresh, onClose, onLoadingChange]);
+
   const confirmDelete = async () => {
     try {
       setDeleting(true);
@@ -148,22 +165,21 @@ export default function AdminEditSnapshotModal({
         setToast({ message: errorData.error || "Erro ao remover lançamento", type: "error" });
         setShowDeleteConfirm(false);
         onLoadingChange?.(false);
+        setDeleting(false);
         return;
       }
 
+      console.log("[MODAL] Lançamento removido com sucesso!");
       setToast({ message: "Lançamento removido com sucesso!", type: "success" });
       setShowDeleteConfirm(false);
+      setWaitingForRefresh(true);
+      console.log("[MODAL] Disparando onSaved() para refrescar dados...");
       onSaved();
-      setTimeout(() => {
-        onClose();
-        onLoadingChange?.(false);
-      }, 2500);
     } catch (err) {
       console.error(err);
       setToast({ message: "Erro ao remover lançamento", type: "error" });
       setShowDeleteConfirm(false);
       onLoadingChange?.(false);
-    } finally {
       setDeleting(false);
     }
   };
@@ -198,23 +214,22 @@ export default function AdminEditSnapshotModal({
         const errorData = await res.json();
         setToast({ message: errorData.error || "Erro ao salvar", type: "error" });
         onLoadingChange?.(false);
+        setLoading(false);
         return;
       }
 
       const message = isEditing
         ? "Lançamento editado com sucesso!"
         : "Lançamento criado com sucesso!";
+      console.log("[MODAL] " + message);
       setToast({ message, type: "success" });
+      setWaitingForRefresh(true);
+      console.log("[MODAL] Disparando onSaved() para refrescar dados...");
       onSaved();
-      setTimeout(() => {
-        onClose();
-        onLoadingChange?.(false);
-      }, 2500);
     } catch (err) {
       console.error(err);
       setToast({ message: "Erro ao salvar lançamento", type: "error" });
       onLoadingChange?.(false);
-    } finally {
       setLoading(false);
     }
   };
@@ -234,14 +249,35 @@ export default function AdminEditSnapshotModal({
           </h2>
           <button
             onClick={onClose}
-            className="text-zinc-400 hover:text-white transition cursor-pointer"
+            disabled={loading || deleting || waitingForRefresh}
+            className="text-zinc-400 hover:text-white transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <X size={20} />
           </button>
         </div>
 
+        {/* Toast in Modal */}
+        {toast && (
+          <div
+            className={`px-6 py-3 border-b flex items-center gap-3 animate-in fade-in ${
+              toast.type === "success"
+                ? "bg-green-500/10 border-green-500/30 text-green-300"
+                : "bg-red-500/10 border-red-500/30 text-red-300"
+            }`}
+          >
+            {toast.type === "success" ? "✓" : "✕"} {toast.message}
+          </div>
+        )}
+
         {/* Form */}
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+        <form onSubmit={handleSubmit} className="p-6 space-y-4 relative">
+          {(loading || waitingForRefresh) && (
+            <div className="absolute inset-0 bg-zinc-900/50 rounded-b-lg flex items-center justify-center z-10">
+              <div className="text-sm text-white font-medium">
+                {waitingForRefresh ? "Finalizando..." : "Salvando..."}
+              </div>
+            </div>
+          )}
 
           {/* Data */}
           <div className="grid grid-cols-3 gap-3">
@@ -399,15 +435,6 @@ export default function AdminEditSnapshotModal({
         onCancel={() => setShowDeleteConfirm(false)}
         primaryColor={theme.colors.primary}
       />
-
-      {/* Toast Notification */}
-      {toast && (
-        <Toast
-          message={toast.message}
-          type={toast.type}
-          onClose={() => setToast(null)}
-        />
-      )}
     </div>
   );
 }

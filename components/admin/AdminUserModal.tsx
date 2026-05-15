@@ -120,19 +120,20 @@ export default function AdminUserModal({
       setLoading(true);
       const url = `/api/admin/users/${user.id}/snapshots?houseId=${houseId}&timeframe=${timeframe}`;
       const startTime = performance.now();
+      console.log(`[GRAPH] Iniciando fetch de snapshots (${timeframe})...`);
       const response = await fetch(url);
       const endTime = performance.now();
-      console.log(`[MODAL] Snapshots fetched in ${(endTime - startTime).toFixed(0)}ms`);
+      console.log(`[GRAPH] ✓ Snapshots fetched em ${(endTime - startTime).toFixed(0)}ms`);
       if (response.ok) {
         const data = await response.json();
-        console.log("[MODAL] Snapshots encontrados:", data.snapshots.length);
+        console.log(`[GRAPH] ✓ ${data.snapshots.length} registros carregados, atualizando gráfico...`);
         setSnapshots(data.snapshots || []);
       } else {
-        console.error("[MODAL] Erro ao buscar:", response.status);
+        console.error("[GRAPH] Erro ao buscar:", response.status);
         setSnapshots([]);
       }
     } catch (err) {
-      console.error("[MODAL] Erro ao buscar snapshots:", err);
+      console.error("[GRAPH] Erro ao buscar snapshots:", err);
       setSnapshots([]);
     } finally {
       setLoading(false);
