@@ -57,14 +57,19 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     const currentStart = new Date(now);
     currentStart.setDate(now.getDate() - days);
 
-    console.log("[SNAPSHOTS] Buscando para userId:", userId, "houseId:", houseId, "timeframe:", timeframe, "startDate:", dateToString(currentStart));
+    const startDateObj = dateToString(currentStart);
+    const endDateObj = new Date(now);
+    endDateObj.setHours(23, 59, 59, 999);
+
+    console.log("[SNAPSHOTS] Buscando para userId:", userId, "houseId:", houseId, "timeframe:", timeframe, "startDate:", startDateObj.toISOString(), "endDate:", endDateObj.toISOString());
 
     const snapshots = await prisma.dailySnapshot.findMany({
       where: {
         userId,
         houseId,
         date: {
-          gte: dateToString(currentStart),
+          gte: startDateObj,
+          lte: endDateObj,
         },
       },
       orderBy: { date: "asc" },

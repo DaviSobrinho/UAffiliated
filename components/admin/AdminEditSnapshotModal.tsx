@@ -202,6 +202,7 @@ export default function AdminEditSnapshotModal({
 
     try {
       const snapshotDate = `${selectedYear}-${String(selectedMonth).padStart(2, "0")}-${String(selectedDay).padStart(2, "0")}`;
+      console.log(`[MODAL] POST snapshot para data: ${snapshotDate} (dia ${selectedDay}/${selectedMonth}/${selectedYear})`);
 
       const res = await fetch(`/api/admin/users/${userId}/snapshot`, {
         method: "POST",

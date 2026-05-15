@@ -221,6 +221,8 @@ export default function AdminUserModal({
       qftds: s.qftds,
     }));
 
+  console.log(`[GRAPH] chartData atualizado com ${chartData.length} pontos, snapshots totais: ${snapshots.length}`);
+
   if (!isOpen) return null;
 
   return (

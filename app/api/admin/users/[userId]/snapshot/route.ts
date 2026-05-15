@@ -104,6 +104,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
     // Parse date in UTC format to avoid timezone issues
     const snapshotDate = new Date(`${date}T00:00:00Z`);
+    console.log(`[SNAPSHOT-POST] Salvando snapshot para ${date}, parsed como ${snapshotDate.toISOString()}`);
 
     const finalQftds = qftds !== undefined ? qftds : 0;
     // Convert CPA to cents (integer), calculate, then convert back to decimal
@@ -137,6 +138,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       },
     });
 
+    console.log(`[SNAPSHOT-POST] ✓ Snapshot salvo: ${snapshot.date.toISOString()}, registros: ${snapshot.registros}, ftds: ${snapshot.ftds}, qftds: ${snapshot.qftds}`);
     return NextResponse.json({ snapshot }, { status: 200 });
   } catch (error) {
     console.error(error);
