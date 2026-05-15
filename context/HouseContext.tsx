@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useContext, useState, useEffect } from "react";
-import { HouseTheme, getHouseTheme, HOUSE_THEMES } from "@/lib/houseThemes";
+import { HouseTheme, HOUSE_THEMES } from "@/lib/houseThemes";
 
 interface HouseContextType {
   selectedHouse: string;
@@ -72,25 +72,25 @@ function getDefaultTheme() {
   };
 }
 
-function getSavedHouseAndTheme() {
-  const saved = localStorage.getItem("selectedHouse");
-  // If saved is a predefined theme ID, use it immediately
-  if (saved && HOUSE_THEMES[saved]) {
-    return { house: saved, theme: getHouseTheme(saved) };
-  }
-
-  return { house: "default", theme: getDefaultTheme() };
-}
-
 export function HouseProvider({ children }: { children: React.ReactNode }) {
-  const { house: initialHouse, theme: initialTheme } = getSavedHouseAndTheme();
-  const [selectedHouse, setSelectedHouse] = useState<string>(initialHouse);
-  const [theme, setTheme] = useState<HouseTheme>(initialTheme);
+  const [selectedHouse, setSelectedHouse] = useState<string>("default");
+  const [theme, setTheme] = useState<HouseTheme>(getDefaultTheme());
   const [initialized, setInitialized] = useState(false);
 
-  // Effect 1: Apply theme colors on mount
+  // Effect 1: Load saved house and apply theme on mount
   useEffect(() => {
-    applyThemeColors(initialTheme);
+    const saved = localStorage.getItem("selectedHouse");
+
+    if (saved && HOUSE_THEMES[saved]) {
+      // If saved is a predefined theme ID, use it immediately
+      setSelectedHouse(saved);
+      const savedTheme = HOUSE_THEMES[saved];
+      setTheme(savedTheme);
+      applyThemeColors(savedTheme);
+    } else {
+      // Apply default theme
+      applyThemeColors(getDefaultTheme());
+    }
   }, []);
 
   // Effect 2: Load dynamic house theme if needed (for UUID houses)
@@ -108,7 +108,7 @@ export function HouseProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (initialized) return;
 
-    if (initialHouse === "default") {
+    if (selectedHouse === "default") {
       const fetchAndSelectFirstHouse = async () => {
         try {
           const res = await fetch("/api/admin/houses");

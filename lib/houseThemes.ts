@@ -12,11 +12,13 @@ export interface HouseTheme {
   };
 }
 
+const R2_URL = "https://pub-9120b7afacb14a1dbbab64cbac5b062f.r2.dev";
+
 export const HOUSE_THEMES: Record<string, HouseTheme> = {
   betano: {
     id: "betano",
     name: "Betano",
-    logo: "/betano.png",
+    logo: `${R2_URL}/betano.png`,
     colors: {
       primary: "#FF6B00",
       primaryLight: "#FF8533",
@@ -29,7 +31,7 @@ export const HOUSE_THEMES: Record<string, HouseTheme> = {
   betfair: {
     id: "betfair",
     name: "Betfair",
-    logo: "/betfair.png",
+    logo: `${R2_URL}/betfair.png`,
     colors: {
       primary: "#FFD700",
       primaryLight: "#FFEB3B",
@@ -42,7 +44,7 @@ export const HOUSE_THEMES: Record<string, HouseTheme> = {
   betnacional: {
     id: "betnacional",
     name: "Bet Nacional",
-    logo: "/betnacional.png",
+    logo: `${R2_URL}/betnacional.png`,
     colors: {
       primary: "#0066FF",
       primaryLight: "#3385FF",
@@ -55,7 +57,7 @@ export const HOUSE_THEMES: Record<string, HouseTheme> = {
   esportivabet: {
     id: "esportivabet",
     name: "Esportivabet",
-    logo: "/esportivabet.png",
+    logo: `${R2_URL}/esportivabet.png`,
     colors: {
       primary: "#FF6B00",
       primaryLight: "#FF8533",
@@ -68,7 +70,7 @@ export const HOUSE_THEMES: Record<string, HouseTheme> = {
   estrelabet: {
     id: "estrelabet",
     name: "Estrelabet",
-    logo: "/estrelabet.png",
+    logo: `${R2_URL}/estrelabet.png`,
     colors: {
       primary: "#FFD700",
       primaryLight: "#FFEB3B",
@@ -81,7 +83,7 @@ export const HOUSE_THEMES: Record<string, HouseTheme> = {
   novibet: {
     id: "novibet",
     name: "Novibet",
-    logo: "/novibet.png",
+    logo: `${R2_URL}/novibet.png`,
     colors: {
       primary: "#FFFFFF",
       primaryLight: "#F5F5F5",
@@ -94,7 +96,7 @@ export const HOUSE_THEMES: Record<string, HouseTheme> = {
   segurobet: {
     id: "segurobet",
     name: "Segurobet",
-    logo: "/segurobet.png",
+    logo: `${R2_URL}/segurobet.png`,
     colors: {
       primary: "#00C853",
       primaryLight: "#00E676",
@@ -107,7 +109,7 @@ export const HOUSE_THEMES: Record<string, HouseTheme> = {
   stake: {
     id: "stake",
     name: "Stake",
-    logo: "/stake.png",
+    logo: `${R2_URL}/stake.png`,
     colors: {
       primary: "#FFFFFF",
       primaryLight: "#F5F5F5",
@@ -120,7 +122,7 @@ export const HOUSE_THEMES: Record<string, HouseTheme> = {
   superbet: {
     id: "superbet",
     name: "Superbet",
-    logo: "/superbet.png",
+    logo: `${R2_URL}/superbet.png`,
     colors: {
       primary: "#FF1744",
       primaryLight: "#FF5E78",
