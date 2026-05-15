@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { Search, ChevronRight } from "lucide-react";
 import { useHouse } from "@/context/HouseContext";
+import { useLogo } from "@/context/LogoContext";
 import AdminUserModal from "./AdminUserModal";
 
 interface User {
@@ -18,35 +19,21 @@ const TOTAL_LIMIT = 100;
 
 export default function AdminPanel() {
   const { theme } = useHouse();
+  const { logoUrl: contextLogoUrl, logoLoading: contextLogoLoading, refreshLogo } = useLogo();
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
-  const [logoUrl, setLogoUrl] = useState<string | null>(null);
-  const [logoLoading, setLogoLoading] = useState(true);
+  const [displayLogoUrl, setDisplayLogoUrl] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [uploadMessage, setUploadMessage] = useState("");
+
   useEffect(() => {
     fetchAllUsers();
-    fetchLogo();
-  }, []);
-
-  const fetchLogo = async () => {
-    try {
-      setLogoLoading(true);
-      const res = await fetch("/api/settings");
-      if (res.ok) {
-        const data = await res.json();
-        setLogoUrl(data.logoUrl);
-      }
-    } catch (err) {
-      console.error("Error fetching logo:", err);
-    } finally {
-      setLogoLoading(false);
-    }
-  };
+    setDisplayLogoUrl(contextLogoUrl);
+  }, [contextLogoUrl]);
 
 
   const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -67,7 +54,8 @@ export default function AdminPanel() {
 
       if (res.ok) {
         const data = await res.json();
-        setLogoUrl(data.logoUrl);
+        setDisplayLogoUrl(data.logoUrl);
+        await refreshLogo();
         setUploadMessage("✅ Logo atualizado com sucesso!");
         setTimeout(() => setUploadMessage(""), 3000);
       } else {
@@ -130,11 +118,11 @@ export default function AdminPanel() {
             {/* Logo Preview */}
             <div className="flex items-center gap-4">
               <div className="w-24 h-24 bg-zinc-700 rounded-lg flex items-center justify-center overflow-hidden shrink-0">
-                {logoLoading ? (
-                  <div className="w-full h-full bg-gradient-to-r from-zinc-800 via-zinc-700 to-zinc-800 animate-pulse" />
-                ) : logoUrl ? (
+                {contextLogoLoading ? (
+                  <div className="w-full h-full bg-linear-to-r from-zinc-800 via-zinc-700 to-zinc-800 animate-pulse" />
+                ) : displayLogoUrl ? (
                   <img
-                    src={logoUrl}
+                    src={displayLogoUrl}
                     alt="Current Logo"
                     className="w-full h-full object-contain p-2"
                   />

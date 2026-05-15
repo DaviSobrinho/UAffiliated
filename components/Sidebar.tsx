@@ -20,29 +20,16 @@ import SidebarBottom from "@/components/SidebarBottom";
 import MobileDrawerBottom from "@/components/MobileDrawerBottom";
 import MobileHeader from "@/components/MobileHeader";
 import { useHouse } from "@/context/HouseContext";
+import { useLogo } from "@/context/LogoContext";
 
 export default function Sidebar() {
   const { theme } = useHouse();
+  const { logoUrl, logoLoading, refreshLogo } = useLogo();
   const [isOpen, setIsOpen] = useState(false);
-  const [logoUrl, setLogoUrl] = useState<string | null>(null);
-  const [logoLoading, setLogoLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
-    const fetchLogo = async () => {
-      try {
-        setLogoLoading(true);
-        const res = await fetch("/api/settings");
-        if (res.ok) {
-          const data = await res.json();
-          setLogoUrl(data.logoUrl);
-        }
-      } catch (err) {
-        console.error("Error fetching logo:", err);
-      } finally {
-        setLogoLoading(false);
-      }
-    };
+    refreshLogo();
 
     const checkAdmin = () => {
       const user = localStorage.getItem("user");
@@ -52,9 +39,8 @@ export default function Sidebar() {
       }
     };
 
-    fetchLogo();
     checkAdmin();
-  }, []);
+  }, [refreshLogo]);
 
   const menuItems = [
     { icon: LayoutDashboard, label: "Dashboard", href: "/dashboard" },
@@ -79,7 +65,7 @@ export default function Sidebar() {
         {/* Logo */}
         <div className="w-full px-4 py-4 mb-8 flex items-center justify-center h-24">
           {logoLoading ? (
-            <div className="w-full h-full bg-gradient-to-r from-zinc-800 via-zinc-700 to-zinc-800 rounded-lg animate-pulse" />
+            <div className="w-full h-full bg-linear-to-r from-zinc-800 via-zinc-700 to-zinc-800 rounded-lg animate-pulse" />
           ) : logoUrl ? (
             <Image
               src={logoUrl}

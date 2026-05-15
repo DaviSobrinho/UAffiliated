@@ -19,11 +19,11 @@ export async function POST(
     }
 
     const { affiliateId } = await params;
-    const { cpa, houseId, houseName } = await request.json();
+    const { cpa, houseId } = await request.json();
 
-    if (!cpa || !houseId || !houseName) {
+    if (!cpa || !houseId) {
       return NextResponse.json(
-        { error: "CPA, houseId e houseName são obrigatórios" },
+        { error: "CPA e houseId são obrigatórios" },
         { status: 400 }
       );
     }
@@ -117,7 +117,6 @@ export async function POST(
       create: {
         userId: affiliateId,
         houseId,
-        houseName,
         cpa: cpaBigDecimal,
         affiliateLink: `${houseId}/${affiliateId}`,
         cpaEditedOnce: true,

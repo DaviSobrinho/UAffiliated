@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { verifyToken } from "@/lib/auth";
+import { resolveHouseId } from "@/lib/house-utils";
 
 const TIMEFRAME_DAYS: Record<string, number> = {
   "7d": 7,
@@ -79,8 +80,13 @@ export async function GET(
     }
 
     const { searchParams } = new URL(request.url);
-    const houseId = searchParams.get("houseId") || "betano";
+    const houseNameOrId = searchParams.get("houseId") || "betano";
     const timeframe = searchParams.get("timeframe") || "30d";
+
+    const houseId = await resolveHouseId(houseNameOrId);
+    if (!houseId) {
+      return NextResponse.json({ error: "Casa não encontrada" }, { status: 404 });
+    }
 
     // Permission check
     const isAdmin = decoded.role === "ADMIN";

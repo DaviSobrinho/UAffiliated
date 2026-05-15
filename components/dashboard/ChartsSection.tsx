@@ -8,7 +8,12 @@ interface ChartsData {
   timeline: { date: string; revenue: number }[];
   funnel: { registros: number; ftds: number; qftds: number };
   commission: number;
-  comparison: { current: number; previous: number };
+  comparison: {
+    receita: { current: number; previous: number };
+    registros: { current: number; previous: number };
+    ftds: { current: number; previous: number };
+    qftds: { current: number; previous: number };
+  };
 }
 
 interface ChartsSectionProps {
@@ -21,6 +26,7 @@ interface ChartsSectionProps {
 export default function ChartsSection({ houseId, timeframe, affiliateId, viewingUserId }: ChartsSectionProps) {
   const [chartsData, setChartsData] = useState<ChartsData | null>(null);
   const [loading, setLoading] = useState(false);
+  const [selectedMetric, setSelectedMetric] = useState<"receita" | "registros" | "ftds" | "qftds">("receita");
 
   // Fetch charts data when houseId, timeframe, or affiliateId changes
   useEffect(() => {
@@ -64,8 +70,10 @@ export default function ChartsSection({ houseId, timeframe, affiliateId, viewing
           <CommissionChart data={chartsData.timeline.map((t: { date: string; revenue: number }) => ({ date: t.date, value: t.revenue }))} />
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
             <ComparativeChart
-              current={chartsData.comparison.current}
-              previous={chartsData.comparison.previous}
+              current={chartsData.comparison[selectedMetric].current}
+              previous={chartsData.comparison[selectedMetric].previous}
+              metric={selectedMetric}
+              onMetricChange={setSelectedMetric}
             />
             <FunnelChart
               registros={chartsData.funnel.registros}

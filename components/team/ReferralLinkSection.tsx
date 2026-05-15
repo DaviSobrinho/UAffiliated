@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Copy, Check, Link2 } from "lucide-react";
 import Image from "next/image";
 import { useHouse } from "@/context/HouseContext";
+import { useLogo } from "@/context/LogoContext";
 
 interface ReferralLinkSectionProps {
   referralLink: string;
@@ -11,6 +12,7 @@ interface ReferralLinkSectionProps {
 
 export default function ReferralLinkSection({ referralLink }: ReferralLinkSectionProps) {
   const { theme } = useHouse();
+  const { logoUrl, logoLoading } = useLogo();
   const [copied, setCopied] = useState(false);
 
   const handleCopy = () => {
@@ -44,13 +46,19 @@ export default function ReferralLinkSection({ referralLink }: ReferralLinkSectio
       }}
     >
       <div className="flex items-start gap-3">
-        <Image
-          src="/uaffiliated.png"
-          alt="UAffiliated"
-          width={120}
-          height={40}
-          className="h-8 w-auto"
-        />
+        {logoLoading ? (
+          <div className="h-8 w-24 bg-zinc-700 rounded animate-pulse" />
+        ) : logoUrl ? (
+          <Image
+            src={logoUrl}
+            alt="UAffiliated"
+            width={120}
+            height={40}
+            className="h-8 w-auto"
+          />
+        ) : (
+          <div className="h-8 w-24 bg-zinc-700 rounded" />
+        )}
         <div className="flex-1">
           <h3 className="text-white font-bold text-lg mb-1 flex items-center gap-2">
             <Link2 size={20} style={{ color: theme.colors.primary }} />

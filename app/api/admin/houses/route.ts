@@ -1,16 +1,25 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyToken } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { invalidateHouseCache } from "@/lib/house-utils";
 
 export async function GET() {
+  const startTime = Date.now();
   try {
+    console.log("[HOUSES-GET] 🏠 Buscando casas...");
+
+    const queryStart = Date.now();
     const houses = await prisma.house.findMany({
       orderBy: { createdAt: "desc" },
     });
+    console.log(`[HOUSES-GET] ✓ Query em ${Date.now() - queryStart}ms, encontradas ${houses.length} casas`);
 
+    const duration = Date.now() - startTime;
+    console.log(`[HOUSES-GET] ✅ Retornando ${houses.length} casas (${duration}ms)`);
     return NextResponse.json({ houses });
   } catch (error) {
-    console.error("Error fetching houses:", error);
+    const duration = Date.now() - startTime;
+    console.error(`[HOUSES-GET] 💥 ERRO após ${duration}ms:`, error);
     return NextResponse.json(
       { error: "Failed to fetch houses" },
       { status: 500 }
@@ -56,6 +65,8 @@ export async function POST(request: NextRequest) {
         color: color && typeof color === "string" ? color : "#3b82f6",
       },
     });
+
+    invalidateHouseCache();
 
     return NextResponse.json({ house }, { status: 201 });
   } catch (error) {

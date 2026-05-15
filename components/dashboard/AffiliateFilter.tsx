@@ -95,6 +95,7 @@ export default function AffiliateFilter({ houseId, value, onChange, currentUserN
         className="w-full px-4 py-2.5 bg-zinc-900 border rounded-lg text-white text-sm text-left flex items-center justify-between hover:bg-zinc-800 transition disabled:opacity-50"
         style={{
           borderColor: theme.colors.primary,
+          boxShadow: `0 0 12px ${theme.colors.primary}20`,
         }}
       >
         <span>{selectedAffiliateLabel}</span>
@@ -107,8 +108,11 @@ export default function AffiliateFilter({ houseId, value, onChange, currentUserN
 
       {isOpen && (
         <div
-          className="absolute top-full left-0 right-0 mt-2 bg-zinc-900 border rounded-lg shadow-lg z-50 max-h-96 overflow-hidden flex flex-col"
-          style={{ borderColor: theme.colors.primary }}
+          className="absolute top-full left-0 right-0 mt-2 bg-zinc-900 border rounded-lg z-50 max-h-96 overflow-hidden flex flex-col"
+          style={{
+            borderColor: theme.colors.primary,
+            boxShadow: `0 8px 32px ${theme.colors.primary}35`,
+          }}
         >
           {/* Search input */}
           <div className="p-2 border-b sticky top-0 bg-zinc-900" style={{ borderColor: theme.colors.primary }}>
@@ -129,8 +133,12 @@ export default function AffiliateFilter({ houseId, value, onChange, currentUserN
             {/* Todos os afiliados option */}
             <button
               onClick={() => handleSelectAffiliate("all")}
-              className="w-full px-4 py-3 text-left hover:bg-zinc-800/50 transition border-b text-white font-medium"
-              style={{ borderColor: theme.colors.primary }}
+              className="w-full px-4 py-3 text-left hover:bg-zinc-800/50 transition border-b border-l-4 text-white font-medium"
+              style={{
+                borderColor: theme.colors.primary,
+                borderLeftColor: value === "all" ? theme.colors.primary : "transparent",
+                boxShadow: value === "all" ? `inset 0 0 15px ${theme.colors.primary}30` : undefined,
+              }}
             >
               {currentUserName} (Você)
             </button>
@@ -148,10 +156,12 @@ export default function AffiliateFilter({ houseId, value, onChange, currentUserN
                 <button
                   key={affiliate.id}
                   onClick={() => handleSelectAffiliate(affiliate.id)}
-                  className="w-full px-4 py-3 text-left hover:bg-zinc-800/50 transition border-b last:border-b-0 flex items-center justify-between"
+                  className="w-full px-4 py-3 text-left hover:bg-zinc-800/50 transition border-b last:border-b-0 border-l-4 flex items-center justify-between"
                   style={{
                     borderColor: theme.colors.primary,
+                    borderLeftColor: value === affiliate.id ? theme.colors.primary : "transparent",
                     paddingLeft: `${12 + (affiliate.level - 1) * 16}px`,
+                    boxShadow: value === affiliate.id ? `inset 0 0 15px ${theme.colors.primary}30` : undefined,
                   }}
                 >
                   <span className="text-white">{affiliate.name}</span>

@@ -7,6 +7,59 @@ async function isAdmin(token: string): Promise<boolean> {
   return decoded?.role === "ADMIN";
 }
 
+export async function GET(request: NextRequest, { params }: { params: Promise<{ userId: string }> }) {
+  const { userId } = await params;
+  try {
+    const token = request.cookies.get("auth")?.value;
+
+    if (!token) {
+      return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
+    }
+
+    if (!(await isAdmin(token))) {
+      return NextResponse.json({ error: "Apenas admin pode realizar esta ação" }, { status: 403 });
+    }
+
+    const { searchParams } = new URL(request.url);
+    const houseId = searchParams.get("houseId");
+    const month = searchParams.get("month");
+    const year = searchParams.get("year");
+
+    if (!houseId || !month || !year) {
+      return NextResponse.json(
+        { error: "houseId, month e year são obrigatórios" },
+        { status: 400 }
+      );
+    }
+
+    const monthNum = parseInt(month);
+    const yearNum = parseInt(year);
+
+    // Get first and last day of month
+    const firstDay = new Date(yearNum, monthNum - 1, 1);
+    const lastDay = new Date(yearNum, monthNum, 0);
+    firstDay.setHours(0, 0, 0, 0);
+    lastDay.setHours(23, 59, 59, 999);
+
+    const snapshots = await prisma.dailySnapshot.findMany({
+      where: {
+        userId,
+        houseId,
+        date: {
+          gte: firstDay,
+          lte: lastDay,
+        },
+      },
+      orderBy: { date: "asc" },
+    });
+
+    return NextResponse.json({ snapshots }, { status: 200 });
+  } catch (error) {
+    console.error(error);
+    return NextResponse.json({ error: "Erro ao buscar snapshots" }, { status: 500 });
+  }
+}
+
 export async function POST(request: NextRequest, { params }: { params: Promise<{ userId: string }> }) {
   const { userId } = await params;
   try {

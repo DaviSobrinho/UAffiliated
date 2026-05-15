@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { verifyToken } from "@/lib/auth";
+import { resolveHouseId } from "@/lib/house-utils";
 
 export async function GET(request: NextRequest) {
   try {
@@ -15,13 +16,18 @@ export async function GET(request: NextRequest) {
     }
 
     const { searchParams } = new URL(request.url);
-    const houseId = searchParams.get("houseId");
+    const houseNameOrId = searchParams.get("houseId");
 
-    if (!houseId) {
+    if (!houseNameOrId) {
       return NextResponse.json(
         { error: "Casa de aposta é obrigatória" },
         { status: 400 }
       );
+    }
+
+    const houseId = await resolveHouseId(houseNameOrId);
+    if (!houseId) {
+      return NextResponse.json({ error: "Casa não encontrada" }, { status: 404 });
     }
 
     const houseData = await prisma.userHouseData.findUnique({

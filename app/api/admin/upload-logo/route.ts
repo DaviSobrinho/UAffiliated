@@ -1,6 +1,6 @@
 ﻿import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { PutObjectCommand } from "@aws-sdk/client-s3";
+import { PutObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3";
 import { verifyToken } from "@/lib/auth";
 import { r2 } from "@/lib/r2";
 
@@ -32,6 +32,28 @@ export async function POST(request: NextRequest) {
     // Validar tamanho (máx 2MB)
     if (file.size > 2 * 1024 * 1024) {
       return NextResponse.json({ error: "Arquivo muito grande (máx 2MB)" }, { status: 400 });
+    }
+
+    // Buscar logo anterior para deletar
+    const previousSettings = await prisma.siteSettings.findUnique({
+      where: { id: "singleton" },
+    });
+
+    // Deletar arquivo anterior do R2 se existir
+    if (previousSettings?.logoUrl) {
+      try {
+        const previousFilename = previousSettings.logoUrl.split("/").pop();
+        if (previousFilename) {
+          await r2.send(
+            new DeleteObjectCommand({
+              Bucket: process.env.R2_BUCKET_NAME!,
+              Key: previousFilename,
+            })
+          );
+        }
+      } catch (err) {
+        console.error("Error deleting previous logo:", err);
+      }
     }
 
     // Gerar nome único

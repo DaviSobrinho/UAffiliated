@@ -40,11 +40,17 @@ async function generateSnapshots(
 }
 
 async function main() {
+  const totalStart = Date.now();
+  console.log("[SEED] 🔄 Iniciando seed com logs...");
+
   // Clear existing data
+  console.log("[SEED] 🗑️  Limpando dados antigos...");
+  const clearStart = Date.now();
   await prisma.dailySnapshot.deleteMany();
   await prisma.userHouseData.deleteMany();
   await prisma.house.deleteMany();
   await prisma.user.deleteMany();
+  console.log(`[SEED] ✓ Dados deletados em ${Date.now() - clearStart}ms`);
 
   // Predefined houses with their theme colors
   const predefinedHouses = [
@@ -61,6 +67,8 @@ async function main() {
 
   const createdHouses: Record<string, any> = {};
 
+  console.log(`[SEED] 🏠 Criando ${predefinedHouses.length} casas...`);
+  const housesStart = Date.now();
   for (const house of predefinedHouses) {
     const created = await prisma.house.create({
       data: {
@@ -70,6 +78,7 @@ async function main() {
     });
     createdHouses[house.name] = created;
   }
+  console.log(`[SEED] ✓ Casas criadas em ${Date.now() - housesStart}ms`);
 
   const betano = createdHouses["Betano"];
   const novibet = createdHouses["Novibet"];
@@ -87,8 +96,14 @@ async function main() {
     },
   });
 
+  // Create N1 (admin)
+  console.log(`[SEED] 👤 Criando admin (N1)...`);
+  const usersStart = Date.now();
+  let userCount = 1;
+
   // N2 (direct children of admin) - 3 users
   const n2_users = [];
+  console.log(`[SEED]   - Criando 3 usuários N2...`);
   for (let i = 1; i <= 3; i++) {
     const user = await prisma.user.create({
       data: {
@@ -100,10 +115,12 @@ async function main() {
       },
     });
     n2_users.push(user);
+    userCount++;
   }
 
   // N3 (children of N2) - each N2 user has 3 children
   const n3_users = [];
+  console.log(`[SEED]   - Criando 9 usuários N3...`);
   for (const n2 of n2_users) {
     for (let i = 1; i <= 3; i++) {
       const user = await prisma.user.create({
@@ -116,11 +133,13 @@ async function main() {
         },
       });
       n3_users.push(user);
+      userCount++;
     }
   }
 
   // N4 (children of N3) - each N3 user has 2 children
   const n4_users = [];
+  console.log(`[SEED]   - Criando 18 usuários N4...`);
   for (const n3 of n3_users) {
     for (let i = 1; i <= 2; i++) {
       const user = await prisma.user.create({
@@ -133,11 +152,13 @@ async function main() {
         },
       });
       n4_users.push(user);
+      userCount++;
     }
   }
 
   // N5 (children of N4) - each N4 user has 1 child
   const n5_users = [];
+  console.log(`[SEED]   - Criando 18 usuários N5...`);
   for (const n4 of n4_users) {
     const user = await prisma.user.create({
       data: {
@@ -149,7 +170,9 @@ async function main() {
       },
     });
     n5_users.push(user);
+    userCount++;
   }
+  console.log(`[SEED] ✓ ${userCount} usuários criados em ${Date.now() - usersStart}ms`);
 
   // Create UserHouseData for all users with CPAs that decrease by level
   const createHouseData = async (userId: string, betanoCpa: number, novibetCpa: number) => {
@@ -202,27 +225,35 @@ async function main() {
     await createHouseData(n5.id, 25, 20);
   }
 
-  // Generate and create snapshots for each user
+  // Generate and create snapshots for each user (including admin!)
   const users = [
+    { id: n1.id, cpaB: 200, cpaN: 150 }, // Admin
     ...n2_users.map((u) => ({ id: u.id, cpaB: 150, cpaN: 120 })),
     ...n3_users.map((u) => ({ id: u.id, cpaB: 100, cpaN: 80 })),
     ...n4_users.map((u) => ({ id: u.id, cpaB: 50, cpaN: 40 })),
     ...n5_users.map((u) => ({ id: u.id, cpaB: 25, cpaN: 20 })),
   ];
 
+  console.log(`[SEED] 📊 Criando ${users.length * 30 * 2} snapshots (30 dias × 2 casas)...`);
+  const snapshotsStart = Date.now();
+  let snapshotBatches = 0;
+
   for (const u of users) {
-    const snapshotsBetano = await generateSnapshots(u.id, betano.id, u.cpaB);
-    const snapshotsNovibet = await generateSnapshots(u.id, novibet.id, u.cpaN);
+    // Use 30 days instead of 90 to reduce load
+    const snapshotsBetano = await generateSnapshots(u.id, betano.id, u.cpaB, 30);
+    const snapshotsNovibet = await generateSnapshots(u.id, novibet.id, u.cpaN, 30);
 
     await prisma.dailySnapshot.createMany({
       data: snapshotsBetano,
       skipDuplicates: true,
     });
+    snapshotBatches++;
 
     await prisma.dailySnapshot.createMany({
       data: snapshotsNovibet,
       skipDuplicates: true,
     });
+    snapshotBatches++;
 
     // Update UserHouseData totals based on snapshots
     const totalsBetano = snapshotsBetano.reduce(
@@ -253,15 +284,18 @@ async function main() {
       data: totalsNovibet,
     });
   }
+  console.log(`[SEED] ✓ ${snapshotBatches} batches de snapshots criados em ${Date.now() - snapshotsStart}ms`);
 
-  console.log("✅ Seed completed successfully!");
+  const totalTime = Date.now() - totalStart;
+  console.log("\n✅ Seed completed successfully!");
+  console.log(`⏱️  Tempo total: ${totalTime}ms (${(totalTime / 1000).toFixed(2)}s)`);
   console.log("5-level affiliate hierarchy created:");
   console.log("N1: Admin User (CPA 200)");
-  console.log("N2: User A, User B (CPA 150)");
-  console.log("N3: User A1, User B1 (CPA 100)");
-  console.log("N4: User A1-1, User B1-1 (CPA 50)");
-  console.log("N5: User A1-1-1, User B1-1-1 (CPA 25)");
-  console.log("QFTDS: 1-4 per day (deterministic)");
+  console.log("N2: 3 users (CPA 150)");
+  console.log("N3: 9 users (CPA 100)");
+  console.log("N4: 18 users (CPA 50)");
+  console.log("N5: 18 users (CPA 25)");
+  console.log("Total: 49 users");
 }
 
 main()

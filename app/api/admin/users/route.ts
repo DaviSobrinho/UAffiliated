@@ -10,15 +10,7 @@ export async function GET(request: NextRequest) {
     }
 
     const decoded = verifyToken(token);
-    if (!decoded) {
-      return NextResponse.json({ error: "Invalid token" }, { status: 401 });
-    }
-
-    const user = await prisma.user.findUnique({
-      where: { id: decoded.id },
-    });
-
-    if (!user || user.role !== "ADMIN") {
+    if (!decoded || decoded.role !== "ADMIN") {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 

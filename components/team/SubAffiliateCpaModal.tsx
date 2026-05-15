@@ -57,7 +57,6 @@ export default function SubAffiliateCpaModal({
     setLoading(true);
 
     try {
-      const houseTheme = getHouseTheme(houseId);
       const response = await fetch(
         `/api/users/me/team/${affiliate.id}/house-data`,
         {
@@ -66,7 +65,6 @@ export default function SubAffiliateCpaModal({
           body: JSON.stringify({
             cpa: cpaNum,
             houseId,
-            houseName: houseTheme.name,
           }),
         }
       );

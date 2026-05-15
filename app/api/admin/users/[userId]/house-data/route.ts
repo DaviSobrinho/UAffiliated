@@ -2,17 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { verifyToken } from "@/lib/auth";
 
-async function isAdmin(token: string | undefined): Promise<boolean> {
+function isAdmin(token: string | undefined): boolean {
   if (!token) return false;
 
   const decoded = verifyToken(token);
-  if (!decoded) return false;
-
-  const user = await prisma.user.findUnique({
-    where: { id: decoded.id },
-  });
-
-  return user?.role === "ADMIN";
+  return decoded?.role === "ADMIN";
 }
 
 export async function GET(
@@ -65,11 +59,11 @@ export async function POST(
       return NextResponse.json({ error: "Acesso negado" }, { status: 403 });
     }
 
-    const { houseId, houseName, cpa, affiliateLink, registros, ftds, qftds } =
+    const { houseId, cpa, affiliateLink, registros, ftds, qftds } =
       await request.json();
     const { userId } = await params;
 
-    if (!houseId || !houseName || cpa === undefined || !affiliateLink) {
+    if (!houseId || cpa === undefined || !affiliateLink) {
       return NextResponse.json(
         { error: "Campos obrigatórios faltando" },
         { status: 400 }
@@ -87,7 +81,6 @@ export async function POST(
       data: {
         userId,
         houseId,
-        houseName,
         cpa: parseFloat(cpa.toString()),
         affiliateLink,
         registros: registros || 0,
@@ -124,7 +117,7 @@ export async function PUT(
       return NextResponse.json({ error: "Acesso negado" }, { status: 403 });
     }
 
-    const { houseId, houseName, cpa, affiliateLink, registros, ftds, qftds } =
+    const { houseId, cpa, affiliateLink, registros, ftds, qftds } =
       await request.json();
     const { userId } = await params;
 
@@ -143,7 +136,6 @@ export async function PUT(
     }
 
     const updateData: any = {};
-    if (houseName) updateData.houseName = houseName;
     if (cpa !== undefined) updateData.cpa = parseFloat(cpa.toString());
     if (affiliateLink) updateData.affiliateLink = affiliateLink;
     if (registros !== undefined) updateData.registros = registros;

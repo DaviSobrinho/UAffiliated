@@ -8,6 +8,7 @@ import { useHouse } from "@/context/HouseContext";
 import { getHouseTheme } from "@/lib/houseThemes";
 import { SkeletonBox, SkeletonLine } from "@/components/Skeleton";
 import StatelessHouseSelector from "@/components/StatelessHouseSelector";
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 
 interface User {
   id: string;
@@ -25,6 +26,17 @@ interface UserHouseData {
   registros: number;
   ftds: number;
   qftds: number;
+}
+
+interface DailySnapshot {
+  id: string;
+  userId: string;
+  houseId: string;
+  date: string;
+  registros: number;
+  ftds: number;
+  qftds: number;
+  revenue: string;
 }
 
 interface AdminUserModalProps {
@@ -74,7 +86,27 @@ export default function AdminUserModal({
   const [selectedMonth, setSelectedMonth] = useState(getCurrentMonth());
   const [selectedYear, setSelectedYear] = useState(getCurrentYear());
   const [selectedDay, setSelectedDay] = useState(1);
+  const [snapshots, setSnapshots] = useState<DailySnapshot[]>([]);
+  const [snapshotsLoading, setSnapshotsLoading] = useState(false);
   const previousHouseRef = useRef<string>(globalSelectedHouse);
+
+  const fetchSnapshots = async (houseId: string, month: number, year: number) => {
+    try {
+      setSnapshotsLoading(true);
+      const response = await fetch(
+        `/api/admin/users/${user.id}/snapshot?houseId=${houseId}&month=${month}&year=${year}`
+      );
+      if (response.ok) {
+        const data = await response.json();
+        setSnapshots(data.snapshots || []);
+      }
+    } catch (err) {
+      console.error("Error fetching snapshots:", err);
+      setSnapshots([]);
+    } finally {
+      setSnapshotsLoading(false);
+    }
+  };
 
   const fetchHouseData = async (houseId: string) => {
     setLoading(true);
@@ -105,6 +137,7 @@ export default function AdminUserModal({
       setSelectedHouse(globalSelectedHouse);
       previousHouseRef.current = globalSelectedHouse;
       fetchHouseData(globalSelectedHouse);
+      fetchSnapshots(globalSelectedHouse, selectedMonth, selectedYear);
     } else {
       setHouseData(null);
       setFormData({});
@@ -118,8 +151,59 @@ export default function AdminUserModal({
     if (selectedHouse !== previousHouseRef.current) {
       previousHouseRef.current = selectedHouse;
       fetchHouseData(selectedHouse);
+      fetchSnapshots(selectedHouse, selectedMonth, selectedYear);
     }
   }, [selectedHouse]);
+
+  // Busca snapshots quando mês ou ano mudam
+  useEffect(() => {
+    if (selectedHouse) {
+      fetchSnapshots(selectedHouse, selectedMonth, selectedYear);
+    }
+  }, [selectedMonth, selectedYear]);
+
+  const handleChartClick = (data: any) => {
+    const date = new Date(data.date);
+    setSelectedDay(date.getDate());
+    const snapshotData = snapshots.find(s => {
+      const sDate = new Date(s.date);
+      return sDate.getDate() === date.getDate();
+    });
+    if (snapshotData) {
+      setFormData({
+        ...formData,
+        registros: snapshotData.registros,
+        ftds: snapshotData.ftds,
+        qftds: snapshotData.qftds,
+      });
+    }
+  };
+
+  const handleSnapshotClick = (snapshot: DailySnapshot) => {
+    const date = new Date(snapshot.date);
+    setSelectedDay(date.getDate());
+    setFormData({
+      ...formData,
+      registros: snapshot.registros,
+      ftds: snapshot.ftds,
+      qftds: snapshot.qftds,
+    });
+  };
+
+  const chartData = Array.from({ length: new Date(selectedYear, selectedMonth, 0).getDate() }, (_, i) => {
+    const day = i + 1;
+    const snapshot = snapshots.find(s => {
+      const sDate = new Date(s.date);
+      return sDate.getDate() === day;
+    });
+    return {
+      date: new Date(selectedYear, selectedMonth - 1, day),
+      day,
+      registros: snapshot?.registros || 0,
+      ftds: snapshot?.ftds || 0,
+      qftds: snapshot?.qftds || 0,
+    };
+  }).filter(item => item.registros > 0 || item.ftds > 0 || item.qftds > 0);
 
   const validateForm = (): boolean => {
     const errors: FormErrors = {};
@@ -158,13 +242,11 @@ export default function AdminUserModal({
     setLoading(true);
 
     try {
-      const houseName = getHouseTheme(selectedHouse).name;
       const response = await fetch(`/api/admin/users/${user.id}/house-data`, {
         method: houseData ? "PUT" : "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           houseId: selectedHouse,
-          houseName,
           ...formData,
         }),
       });
@@ -244,6 +326,78 @@ export default function AdminUserModal({
           {success && (
             <div className="bg-green-500/10 border border-green-500/50 text-green-300 px-4 py-3 rounded-lg text-sm">
               {success}
+            </div>
+          )}
+
+          {/* Gráfico Interativo */}
+          {!loading && snapshots.length > 0 && (
+            <div className="bg-zinc-800/50 rounded-lg p-4 border" style={{ borderColor: theme.colors.primary }}>
+              <h3 className="text-sm font-semibold text-zinc-300 mb-3">Histórico de Lançamentos</h3>
+              <ResponsiveContainer width="100%" height={200}>
+                <LineChart data={chartData} onClick={(state) => {
+                  if (state && state.activeTooltipIndex !== undefined && chartData[state.activeTooltipIndex]) {
+                    handleChartClick(chartData[state.activeTooltipIndex]);
+                  }
+                }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke={theme.colors.primary + "30"} />
+                  <XAxis
+                    dataKey="day"
+                    stroke={theme.colors.primary}
+                    style={{ fontSize: "12px" }}
+                  />
+                  <YAxis
+                    stroke={theme.colors.primary}
+                    style={{ fontSize: "12px" }}
+                  />
+                  <Tooltip
+                    contentStyle={{ backgroundColor: "#1f2937", border: `1px solid ${theme.colors.primary}` }}
+                    labelStyle={{ color: "#fff" }}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="registros"
+                    stroke={theme.colors.primary}
+                    dot={{ fill: theme.colors.primary, r: 4 }}
+                    activeDot={{ r: 6 }}
+                    cursor="pointer"
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+
+              {/* Tabela de Snapshots */}
+              {snapshots.length > 0 && (
+                <div className="mt-4">
+                  <h4 className="text-xs font-semibold text-zinc-400 mb-2">Clique em um dia para editar</h4>
+                  <div className="max-h-32 overflow-y-auto space-y-1">
+                    {snapshots.map((snapshot) => {
+                      const sDate = new Date(snapshot.date);
+                      const isSelected = selectedDay === sDate.getDate();
+                      return (
+                        <button
+                          key={snapshot.id}
+                          type="button"
+                          onClick={() => handleSnapshotClick(snapshot)}
+                          className={`w-full text-left px-3 py-2 rounded text-xs transition ${
+                            isSelected
+                              ? "bg-zinc-700"
+                              : "bg-zinc-900 hover:bg-zinc-800"
+                          }`}
+                          style={isSelected ? { backgroundColor: theme.colors.primary + "20" } : {}}
+                        >
+                          <div className="flex justify-between items-center">
+                            <span className="font-medium">
+                              Dia {String(sDate.getDate()).padStart(2, "0")}
+                            </span>
+                            <span className="text-zinc-400">
+                              {snapshot.registros} reg • {snapshot.ftds} FTDs • {snapshot.qftds} QFTDs
+                            </span>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
             </div>
           )}
 

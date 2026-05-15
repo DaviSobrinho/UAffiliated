@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { ChevronRight, Loader2, Lock } from "lucide-react";
 import { useHouse } from "@/context/HouseContext";
 
@@ -12,6 +12,7 @@ interface Affiliate {
   linkedDate: string;
   cpa: number | null;
   cpaEditedOnce: boolean;
+  hasChildren?: boolean;
 }
 
 interface AffiliateTreeNodeProps {
@@ -20,6 +21,7 @@ interface AffiliateTreeNodeProps {
   houseId: string;
   parentCpa: number | null;
   onSetCpa: (affiliate: Affiliate, parentCpa: number | null) => void;
+  searchTerm?: string;
 }
 
 export default function AffiliateTreeNode({
@@ -28,22 +30,27 @@ export default function AffiliateTreeNode({
   houseId,
   parentCpa,
   onSetCpa,
+  searchTerm = "",
 }: AffiliateTreeNodeProps) {
   const { theme } = useHouse();
   const [isExpanded, setIsExpanded] = useState(false);
   const [children, setChildren] = useState<Affiliate[] | null>(null);
   const [loading, setLoading] = useState(false);
-  const [hasChildren, setHasChildren] = useState<boolean | null>(null);
+  const [hasChildren, setHasChildren] = useState<boolean>(affiliate.hasChildren ?? false);
 
-  const handleToggle = async () => {
-    if (isExpanded) {
-      setIsExpanded(false);
-      return;
-    }
+  // Auto-expand when search term matches children
+  const matchesSearch = !searchTerm ||
+    affiliate.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    affiliate.email.toLowerCase().includes(searchTerm.toLowerCase());
 
+  const childrenMatchSearch = children?.some(c =>
+    c.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    c.email.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  const loadChildren = useCallback(async () => {
     if (children !== null) {
-      setIsExpanded(true);
-      return;
+      return children;
     }
 
     setLoading(true);
@@ -54,19 +61,54 @@ export default function AffiliateTreeNode({
         const fetched = data.affiliates ?? [];
         setChildren(fetched);
         setHasChildren(fetched.length > 0);
-        setIsExpanded(fetched.length > 0);
+        return fetched;
       } else {
         setChildren([]);
         setHasChildren(false);
+        return [];
       }
     } catch (err) {
       console.error("Error fetching children:", err);
       setChildren([]);
       setHasChildren(false);
+      return [];
     } finally {
       setLoading(false);
     }
+  }, [children, affiliate.id, houseId]);
+
+  const handleToggle = async () => {
+    if (isExpanded) {
+      setIsExpanded(false);
+      return;
+    }
+
+    const childrenList = await loadChildren();
+    setIsExpanded(childrenList.length > 0);
   };
+
+  useEffect(() => {
+    if (searchTerm) {
+      loadChildren();
+    }
+  }, [searchTerm, loadChildren]);
+
+  useEffect(() => {
+    const shouldAutoExpand = searchTerm && children !== null && childrenMatchSearch && !isExpanded;
+    if (shouldAutoExpand) {
+      setIsExpanded(true);
+    }
+  }, [searchTerm, children, childrenMatchSearch, isExpanded]);
+
+  // Show this row if it matches search or if we should show it (parent of match)
+  const shouldShow = matchesSearch || (searchTerm && children?.some(c =>
+    c.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    c.email.toLowerCase().includes(searchTerm.toLowerCase())
+  ));
+
+  if (!shouldShow) {
+    return null;
+  }
 
   return (
     <>
@@ -75,7 +117,7 @@ export default function AffiliateTreeNode({
           <div style={{ marginLeft: depth * 20 }} className="flex items-center gap-2">
             {loading ? (
               <Loader2 size={16} className="animate-spin" style={{ color: theme.colors.primary }} />
-            ) : hasChildren !== false ? (
+            ) : hasChildren ? (
               <button
                 onClick={handleToggle}
                 className="transition"
@@ -109,6 +151,11 @@ export default function AffiliateTreeNode({
               <Lock size={14} style={{ color: theme.colors.primary }} />
               <span className="text-xs text-zinc-400">Bloqueado</span>
             </div>
+          ) : depth > 0 ? (
+            <div className="flex items-center justify-center gap-1" title="Apenas o indicador direto pode definir CPA">
+              <Lock size={14} style={{ color: theme.colors.primary }} />
+              <span className="text-xs text-zinc-400">Bloqueado</span>
+            </div>
           ) : (
             <button
               onClick={() => onSetCpa(affiliate, parentCpa)}
@@ -134,6 +181,7 @@ export default function AffiliateTreeNode({
               houseId={houseId}
               parentCpa={affiliate.cpa}
               onSetCpa={onSetCpa}
+              searchTerm={searchTerm}
             />
           ))}
         </>

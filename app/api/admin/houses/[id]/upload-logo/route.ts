@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { verifyToken } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { r2 } from "@/lib/r2";
-import { PutObjectCommand } from "@aws-sdk/client-s3";
+import { PutObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3";
 
 export async function POST(
   request: NextRequest,
@@ -46,6 +46,23 @@ export async function POST(
         { error: "File size must be less than 2MB" },
         { status: 400 }
       );
+    }
+
+    // Deletar logo anterior do R2 se existir
+    if (house.logoUrl) {
+      try {
+        const previousFilename = house.logoUrl.split("/").pop();
+        if (previousFilename) {
+          await r2.send(
+            new DeleteObjectCommand({
+              Bucket: process.env.R2_BUCKET_NAME!,
+              Key: previousFilename,
+            })
+          );
+        }
+      } catch (err) {
+        console.error("Error deleting previous house logo:", err);
+      }
     }
 
     const buffer = Buffer.from(await file.arrayBuffer());

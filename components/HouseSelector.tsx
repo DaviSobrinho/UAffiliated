@@ -21,21 +21,40 @@ export default function HouseSelector() {
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const fetchHouses = async () => {
-      try {
-        const res = await fetch("/api/admin/houses");
-        if (res.ok) {
-          const data = await res.json();
-          setDynamicHouses(data.houses || []);
-        }
-      } catch (err) {
-        console.error("Error fetching houses:", err);
-      } finally {
-        setLoadingHouses(false);
-      }
-    };
+    // Delay the fetch to avoid startup bottleneck
+    const timer = setTimeout(() => {
+      const fetchHouses = async () => {
+        try {
+          console.log("[HouseSelector] 🏠 Iniciando fetch de casas (com delay de 500ms)...");
+          const startTime = Date.now();
 
-    fetchHouses();
+          const res = await fetch("/api/admin/houses");
+          const fetchDuration = Date.now() - startTime;
+
+          console.log(`[HouseSelector] 📡 Response status: ${res.status}, duração: ${fetchDuration}ms`);
+
+          if (res.ok) {
+            const data = await res.json();
+            console.log(`[HouseSelector] ✅ Casas carregadas: ${data.houses?.length || 0} casas em ${Date.now() - startTime}ms`);
+            setDynamicHouses(data.houses || []);
+          } else {
+            console.error(`[HouseSelector] ❌ Erro na resposta: ${res.status}`);
+          }
+        } catch (err) {
+          console.error(`[HouseSelector] 💥 Erro ao buscar casas:`, err);
+        } finally {
+          setLoadingHouses(false);
+        }
+      };
+
+      console.log("[HouseSelector] ⏰ Timer iniciado (fetch em 500ms)");
+      fetchHouses();
+    }, 500); // Delay by 500ms to avoid startup bottleneck
+
+    return () => {
+      clearTimeout(timer);
+      console.log("[HouseSelector] 🔄 Cleanup do timer");
+    };
   }, []);
 
   useEffect(() => {

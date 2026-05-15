@@ -1,32 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { verifyToken } from "@/lib/auth";
-
-// BFS to collect all descendant IDs
-async function getAllDescendants(userId: string): Promise<string[]> {
-  const descendants: string[] = [];
-  const visited = new Set<string>();
-  const queue = [userId];
-
-  while (queue.length > 0) {
-    const currentId = queue.shift();
-
-    if (visited.has(currentId)) continue;
-    visited.add(currentId);
-
-    const children = await prisma.user.findMany({
-      where: { affiliateParentId: currentId },
-      select: { id: true },
-    });
-
-    for (const child of children) {
-      descendants.push(child.id);
-      queue.push(child.id);
-    }
-  }
-
-  return descendants;
-}
+import { resolveHouseId } from "@/lib/house-utils";
+import { getAllDescendants } from "@/lib/affiliate-utils";
 
 // Get direct children IDs
 async function getDirectChildren(userId: string): Promise<string[]> {
@@ -52,14 +28,19 @@ export async function GET(request: NextRequest) {
     }
 
     const { searchParams } = new URL(request.url);
-    const houseId = searchParams.get("houseId");
+    const houseNameOrId = searchParams.get("houseId");
     const timeframe = searchParams.get("timeframe") || "30d";
 
-    if (!houseId) {
+    if (!houseNameOrId) {
       return NextResponse.json(
         { error: "houseId é obrigatório" },
         { status: 400 }
       );
+    }
+
+    const houseId = await resolveHouseId(houseNameOrId);
+    if (!houseId) {
+      return NextResponse.json({ error: "Casa não encontrada" }, { status: 404 });
     }
 
     const TIMEFRAME_DAYS: Record<string, number> = {

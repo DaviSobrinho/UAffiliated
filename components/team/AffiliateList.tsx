@@ -31,14 +31,10 @@ export default function AffiliateList({ affiliates, houseId, parentCpa, onSetCpa
   const [sortField, setSortField] = useState<SortField>("linkedDate");
   const [sortOrder, setSortOrder] = useState<SortOrder>("desc");
 
-  const filteredAndSorted = useMemo(() => {
-    let filtered = affiliates.filter(
-      (affiliate) =>
-        affiliate.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        affiliate.email.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+  const sortedAffiliates = useMemo(() => {
+    let sorted = [...affiliates];
 
-    filtered.sort((a, b) => {
+    sorted.sort((a, b) => {
       let aVal: string | number = a[sortField as keyof Affiliate] as string | number || "";
       let bVal: string | number = b[sortField as keyof Affiliate] as string | number || "";
 
@@ -52,8 +48,8 @@ export default function AffiliateList({ affiliates, houseId, parentCpa, onSetCpa
       return 0;
     });
 
-    return filtered;
-  }, [affiliates, searchTerm, sortField, sortOrder]);
+    return sorted;
+  }, [affiliates, sortField, sortOrder]);
 
   const toggleSort = (field: SortField) => {
     if (sortField === field) {
@@ -76,9 +72,11 @@ export default function AffiliateList({ affiliates, houseId, parentCpa, onSetCpa
           <h3 className="text-lg md:text-xl font-bold text-white">
             Meus Afiliados ({affiliates.length})
           </h3>
-          <p className="text-sm text-zinc-400 mt-1">
-            Mostrando {filteredAndSorted.length} de {affiliates.length}
-          </p>
+          {searchTerm && (
+            <p className="text-sm text-zinc-400 mt-1">
+              Pesquisando por "{searchTerm}"
+            </p>
+          )}
         </div>
       </div>
 
@@ -159,7 +157,7 @@ export default function AffiliateList({ affiliates, houseId, parentCpa, onSetCpa
               </tr>
             </thead>
             <tbody>
-              {filteredAndSorted.map((affiliate) => (
+              {sortedAffiliates.map((affiliate) => (
                 <AffiliateTreeNode
                   key={affiliate.id}
                   affiliate={affiliate}
@@ -167,6 +165,7 @@ export default function AffiliateList({ affiliates, houseId, parentCpa, onSetCpa
                   houseId={houseId}
                   parentCpa={parentCpa || null}
                   onSetCpa={onSetCpa || (() => {})}
+                  searchTerm={searchTerm}
                 />
               ))}
             </tbody>

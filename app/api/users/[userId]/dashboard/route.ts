@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { verifyToken } from "@/lib/auth";
+import { resolveHouseId } from "@/lib/house-utils";
 
 const TIMEFRAME_DAYS: Record<string, number> = {
   "7d": 7,
@@ -92,14 +93,23 @@ export async function GET(
     }
 
     const { searchParams } = new URL(request.url);
-    const houseId = searchParams.get("houseId") || "betano";
+    const houseNameOrId = searchParams.get("houseId") || "betano";
     const timeframe = searchParams.get("timeframe") || "30d";
+
+    const houseId = await resolveHouseId(houseNameOrId);
+    if (!houseId) {
+      console.log(`[DASHBOARD-USER] ❌ Casa não encontrada: ${houseNameOrId}`);
+      return NextResponse.json({ error: "Casa não encontrada" }, { status: 404 });
+    }
+
+    console.log(`[DASHBOARD-USER] Requisição: userId=${userId}, houseId=${houseId}`);
 
     // Permission check
     const isAdmin = decoded.role === "ADMIN";
     if (!isAdmin) {
       const isDescendant = await isDescendantOf(decoded.id, userId);
       if (!isDescendant) {
+        console.log(`[DASHBOARD-USER] ❌ Acesso negado`);
         return NextResponse.json(
           { error: "Sem acesso a este usuário" },
           { status: 403 }
@@ -116,8 +126,11 @@ export async function GET(
     });
 
     if (!user) {
+      console.log(`[DASHBOARD-USER] ❌ Usuário não encontrado`);
       return NextResponse.json({ error: "Usuário não encontrado" }, { status: 404 });
     }
+
+    console.log(`[DASHBOARD-USER] ✓ Usuário: ${user.name}`);
 
     // Get house data
     const houseData = await prisma.userHouseData.findUnique({
@@ -125,8 +138,18 @@ export async function GET(
     });
 
     if (!houseData) {
+      console.log(`[DASHBOARD-USER] ❌ userHouseData não encontrado para userId=${userId}, houseId=${houseId}`);
+
+      // Debug: show what houses this user has
+      const allUserHouses = await prisma.userHouseData.findMany({
+        where: { userId },
+      });
+      console.log(`[DASHBOARD-USER] 📊 Casas disponíveis: ${allUserHouses.map(h => h.houseId).join(', ') || 'NENHUMA'}`);
+
       return NextResponse.json({ error: "Dados da casa não encontrados" }, { status: 404 });
     }
+
+    console.log(`[DASHBOARD-USER] ✓ Dados encontrados, CPA=${houseData.cpa}`);
 
     // Get period snapshots
     const now = new Date();

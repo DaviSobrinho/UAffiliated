@@ -1,7 +1,17 @@
 "use client";
 
+console.log("[PROVIDERS] 🔌 Providers carregando...");
+
 import { HouseProvider } from "@/context/HouseContext";
+import { LogoProvider } from "@/context/LogoContext";
+
+console.log("[PROVIDERS] ✓ HouseProvider importado");
 
 export function Providers({ children }: { children: React.ReactNode }) {
-  return <HouseProvider>{children}</HouseProvider>;
+  console.log("[PROVIDERS] 🎬 Providers renderizando...");
+  return (
+    <HouseProvider>
+      <LogoProvider>{children}</LogoProvider>
+    </HouseProvider>
+  );
 }

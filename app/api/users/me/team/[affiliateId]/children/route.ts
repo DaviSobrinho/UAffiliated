@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { verifyToken } from "@/lib/auth";
+import { resolveHouseId } from "@/lib/house-utils";
+import { getUserLevel, isDescendantOf } from "@/lib/affiliate-utils";
 
 function formatDate(date: Date): string {
   return new Date(date).toLocaleDateString("pt-BR");
@@ -8,33 +10,6 @@ function formatDate(date: Date): string {
 
 function formatCPA(value: number): string {
   return `R$ ${value.toFixed(2).replace(".", ",")}`;
-}
-
-// BFS to verify if nodeId is a descendant of userId
-async function isDescendantOf(userId: string, nodeId: string): Promise<boolean> {
-  if (nodeId === userId) return true;
-
-  const visited = new Set<string>();
-  const queue = [userId];
-
-  while (queue.length > 0) {
-    const currentId = queue.shift()!;
-
-    if (visited.has(currentId)) continue;
-    visited.add(currentId);
-
-    const children = await prisma.user.findMany({
-      where: { affiliateParentId: currentId },
-      select: { id: true },
-    });
-
-    for (const child of children) {
-      if (child.id === nodeId) return true;
-      queue.push(child.id);
-    }
-  }
-
-  return false;
 }
 
 export async function GET(
@@ -54,13 +29,18 @@ export async function GET(
     }
 
     const { searchParams } = new URL(request.url);
-    const houseId = searchParams.get("houseId");
+    const houseNameOrId = searchParams.get("houseId");
 
-    if (!houseId) {
+    if (!houseNameOrId) {
       return NextResponse.json(
         { error: "houseId é obrigatório" },
         { status: 400 }
       );
+    }
+
+    const houseId = await resolveHouseId(houseNameOrId);
+    if (!houseId) {
+      return NextResponse.json({ error: "Casa não encontrada" }, { status: 404 });
     }
 
     const { affiliateId } = await params;
@@ -103,24 +83,31 @@ export async function GET(
       return NextResponse.json({ error: "Usuário não encontrado" }, { status: 404 });
     }
 
-    const affiliates = user.affiliateChildren
-      .map((child) => {
-        const houseData = child.userHouseData[0];
-        const commission = houseData
-          ? Number(houseData.cpa) * houseData.qftds
-          : 0;
+    const affiliates = [];
+    for (const child of user.affiliateChildren) {
+      const houseData = child.userHouseData[0];
+      const commission = houseData
+        ? Number(houseData.cpa) * houseData.qftds
+        : 0;
+      const level = await getUserLevel(child.id);
+      const childrenCount = await prisma.user.count({
+        where: { affiliateParentId: child.id },
+      });
 
-        return {
-          id: child.id,
-          name: child.name,
-          email: child.email,
-          commission: formatCPA(commission),
-          linkedDate: formatDate(child.createdAt),
-          cpa: houseData ? Number(houseData.cpa) : null,
-          cpaEditedOnce: houseData ? houseData.cpaEditedOnce : false,
-        };
-      })
-      .sort((a, b) => new Date(b.linkedDate).getTime() - new Date(a.linkedDate).getTime());
+      affiliates.push({
+        id: child.id,
+        name: child.name,
+        email: child.email,
+        level,
+        commission: formatCPA(commission),
+        linkedDate: formatDate(child.createdAt),
+        cpa: houseData ? Number(houseData.cpa) : null,
+        cpaEditedOnce: houseData ? houseData.cpaEditedOnce : false,
+        hasChildren: childrenCount > 0,
+      });
+    }
+
+    affiliates.sort((a, b) => new Date(b.linkedDate).getTime() - new Date(a.linkedDate).getTime());
 
     return NextResponse.json({ affiliates });
   } catch (error) {

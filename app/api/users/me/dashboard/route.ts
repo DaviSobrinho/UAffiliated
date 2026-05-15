@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { verifyToken } from "@/lib/auth";
+import { resolveHouseId } from "@/lib/house-utils";
+import { getAllDescendants } from "@/lib/affiliate-utils";
 
 const TIMEFRAME_DAYS: Record<string, number> = {
   "7d": 7,
@@ -9,30 +11,6 @@ const TIMEFRAME_DAYS: Record<string, number> = {
   "6m": 180,
   "1y": 365,
 };
-
-async function getAllDescendants(userId: string): Promise<string[]> {
-  const descendants: string[] = [];
-  const visited = new Set<string>();
-  const queue = [userId];
-
-  while (queue.length > 0) {
-    const currentId = queue.shift();
-    if (visited.has(currentId)) continue;
-    visited.add(currentId);
-
-    const children = await prisma.user.findMany({
-      where: { affiliateParentId: currentId },
-      select: { id: true },
-    });
-
-    for (const child of children) {
-      descendants.push(child.id);
-      queue.push(child.id);
-    }
-  }
-
-  return descendants;
-}
 
 async function getDirectChildren(userId: string): Promise<string[]> {
   const children = await prisma.user.findMany({
@@ -63,8 +41,16 @@ export async function GET(request: NextRequest) {
     }
 
     const { searchParams } = new URL(request.url);
-    const houseId = searchParams.get("houseId") || "betano";
+    const houseNameOrId = searchParams.get("houseId") || "betano";
     const timeframe = searchParams.get("timeframe") || "30d";
+
+    const houseId = await resolveHouseId(houseNameOrId);
+    if (!houseId) {
+      console.log(`[DASHBOARD] ❌ Casa não encontrada: ${houseNameOrId}`);
+      return NextResponse.json({ error: "Casa não encontrada" }, { status: 404 });
+    }
+
+    console.log(`[DASHBOARD] Usuário: ${decoded.id}, Casa: ${houseId}, Timeframe: ${timeframe}`);
 
     const days = TIMEFRAME_DAYS[timeframe] ?? 30;
 
@@ -75,8 +61,11 @@ export async function GET(request: NextRequest) {
     });
 
     if (!user) {
+      console.log(`[DASHBOARD] ❌ Usuário não encontrado: ${decoded.id}`);
       return NextResponse.json({ error: "Usuário não encontrado" }, { status: 404 });
     }
+
+    console.log(`[DASHBOARD] ✓ Usuário encontrado: ${user.name}`);
 
     // Get house data
     const houseData = await prisma.userHouseData.findUnique({
@@ -84,8 +73,18 @@ export async function GET(request: NextRequest) {
     });
 
     if (!houseData) {
+      console.log(`[DASHBOARD] ❌ userHouseData não encontrado para userId=${decoded.id}, houseId=${houseId}`);
+
+      // Debug: Show what houses this user has
+      const allUserHouses = await prisma.userHouseData.findMany({
+        where: { userId: decoded.id },
+      });
+      console.log(`[DASHBOARD] 📊 Casas disponíveis para este usuário: ${allUserHouses.map(h => h.houseId).join(', ')}`);
+
       return NextResponse.json({ error: "Dados da casa não encontrados" }, { status: 404 });
     }
+
+    console.log(`[DASHBOARD] ✓ Dados da casa encontrados, CPA: ${houseData.cpa}`);
 
     // Get period snapshots
     const now = new Date();
@@ -155,6 +154,8 @@ export async function GET(request: NextRequest) {
 
     // Get team stats (all descendants)
     const allDescendants = await getAllDescendants(decoded.id);
+    console.log(`[DASHBOARD] 👥 Descendentes encontrados: ${allDescendants.length}`);
+
     const teamSnapshots = await prisma.dailySnapshot.findMany({
       where: {
         userId: { in: allDescendants },
@@ -166,6 +167,9 @@ export async function GET(request: NextRequest) {
     const teamRegistros = teamSnapshots.reduce((sum, s) => sum + s.registros, 0);
     const teamFtds = teamSnapshots.reduce((sum, s) => sum + s.ftds, 0);
     const teamQftds = teamSnapshots.reduce((sum, s) => sum + s.qftds, 0);
+
+    console.log(`[DASHBOARD] 📈 Stats: Próprio=${periodRegistros}/${periodFtds}/${periodQftds}, Equipe=${teamRegistros}/${teamFtds}/${teamQftds}`);
+    console.log(`[DASHBOARD] 💰 Performance: MeuRev=${meuRev}, Comissão=${comissaoEquipe}, Total=${totalProprio}`);
 
     return NextResponse.json({
       user,

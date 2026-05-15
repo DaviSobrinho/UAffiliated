@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { verifyToken } from "@/lib/auth";
+import { resolveHouseId } from "@/lib/house-utils";
 
 // BFS to verify if nodeId is a descendant of userId
 async function isDescendantOf(userId: string, nodeId: string): Promise<boolean> {
@@ -80,11 +81,16 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     }
 
     const { searchParams } = new URL(request.url);
-    const houseId = searchParams.get("houseId");
+    const houseNameOrId = searchParams.get("houseId");
     const timeframe = searchParams.get("timeframe") || "30d";
 
-    if (!houseId) {
+    if (!houseNameOrId) {
       return NextResponse.json({ error: "houseId é obrigatório" }, { status: 400 });
+    }
+
+    const houseId = await resolveHouseId(houseNameOrId);
+    if (!houseId) {
+      return NextResponse.json({ error: "Casa não encontrada" }, { status: 404 });
     }
 
     const TIMEFRAME_DAYS: Record<string, number> = {

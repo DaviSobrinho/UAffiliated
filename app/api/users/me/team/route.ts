@@ -1,68 +1,42 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { verifyToken } from "@/lib/auth";
+import { resolveHouseId } from "@/lib/house-utils";
+import { getUserLevel } from "@/lib/affiliate-utils";
 
-// Calculate user level in hierarchy
-async function getUserLevel(userId: string): Promise<number> {
-  let level = 1;
-  let currentId: string | null = userId;
-
-  while (currentId) {
-    const user = await prisma.user.findUnique({
-      where: { id: currentId },
-      select: { affiliateParentId: true },
-    });
-
-    if (!user || !user.affiliateParentId) break;
-
-    currentId = user.affiliateParentId;
-    level++;
-  }
-
-  return level;
-}
-
-// Get all descendants with BFS
-async function getAllDescendantsWithData(
+// Get only direct children with data
+async function getDirectChildrenWithData(
   userId: string,
   houseId: string
 ): Promise<any[]> {
-  const descendants = [];
-  const visited = new Set<string>();
-  const queue = [userId];
-
-  while (queue.length > 0) {
-    const currentId = queue.shift();
-
-    if (visited.has(currentId)) continue;
-    visited.add(currentId);
-
-    const children = await prisma.user.findMany({
-      where: { affiliateParentId: currentId },
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        createdAt: true,
-        userHouseData: {
-          where: { houseId },
-          select: {
-            cpa: true,
-            qftds: true,
-            cpaEditedOnce: true,
-          },
+  const children = await prisma.user.findMany({
+    where: { affiliateParentId: userId },
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      createdAt: true,
+      userHouseData: {
+        where: { houseId },
+        select: {
+          cpa: true,
+          qftds: true,
+          cpaEditedOnce: true,
         },
       },
-    });
+    },
+  });
 
-    for (const child of children) {
-      const level = await getUserLevel(child.id);
-      descendants.push({ ...child, level });
-      queue.push(child.id);
-    }
+  const result = [];
+  for (const child of children) {
+    const level = await getUserLevel(child.id);
+    const childrenCount = await prisma.user.count({
+      where: { affiliateParentId: child.id },
+    });
+    result.push({ ...child, level, hasChildren: childrenCount > 0 });
   }
 
-  return descendants;
+  return result;
 }
 
 function formatDate(date: Date): string {
@@ -87,19 +61,24 @@ export async function GET(request: NextRequest) {
     }
 
     const { searchParams } = new URL(request.url);
-    const houseId = searchParams.get("houseId");
+    const houseNameOrId = searchParams.get("houseId");
 
-    if (!houseId) {
+    if (!houseNameOrId) {
       return NextResponse.json(
         { error: "houseId é obrigatório" },
         { status: 400 }
       );
     }
 
-    // Fetch all descendants with their levels
-    const allDescendants = await getAllDescendantsWithData(decoded.id, houseId);
+    const houseId = await resolveHouseId(houseNameOrId);
+    if (!houseId) {
+      return NextResponse.json({ error: "Casa não encontrada" }, { status: 404 });
+    }
 
-    const affiliates = allDescendants
+    // Fetch only direct children with their levels
+    const directChildren = await getDirectChildrenWithData(decoded.id, houseId);
+
+    const affiliates = directChildren
       .map((child) => {
         const houseData = child.userHouseData[0];
         const cpaBigDecimal = houseData ? Number(houseData.cpa) : 0;
@@ -114,6 +93,7 @@ export async function GET(request: NextRequest) {
           linkedDate: formatDate(child.createdAt),
           cpa: houseData ? cpaBigDecimal : null,
           cpaEditedOnce: houseData ? houseData.cpaEditedOnce : false,
+          hasChildren: child.hasChildren,
         };
       })
       .sort((a, b) => new Date(b.linkedDate).getTime() - new Date(a.linkedDate).getTime());

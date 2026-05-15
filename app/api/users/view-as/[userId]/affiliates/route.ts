@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { verifyToken } from "@/lib/auth";
+import { resolveHouseId } from "@/lib/house-utils";
 
 async function isDescendantOf(userId: string, nodeId: string): Promise<boolean> {
   if (nodeId === userId) return true;
@@ -65,10 +66,15 @@ export async function GET(
     }
 
     const { searchParams } = new URL(request.url);
-    const houseId = searchParams.get("houseId");
+    const houseNameOrId = searchParams.get("houseId");
 
-    if (!houseId) {
+    if (!houseNameOrId) {
       return NextResponse.json({ error: "houseId é obrigatório" }, { status: 400 });
+    }
+
+    const houseId = await resolveHouseId(houseNameOrId);
+    if (!houseId) {
+      return NextResponse.json({ error: "Casa não encontrada" }, { status: 404 });
     }
 
     // Permission check

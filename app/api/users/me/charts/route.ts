@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { verifyToken } from "@/lib/auth";
+import { resolveHouseId } from "@/lib/house-utils";
+import { getAllDescendants, isDescendantOf } from "@/lib/affiliate-utils";
 
 const TIMEFRAME_DAYS: Record<string, number> = {
   "7d": 7,
@@ -9,59 +11,6 @@ const TIMEFRAME_DAYS: Record<string, number> = {
   "6m": 180,
   "1y": 365,
 };
-
-// BFS to collect all descendant IDs
-async function getAllDescendants(userId: string): Promise<string[]> {
-  const descendants: string[] = [userId];
-  const visited = new Set<string>();
-  const queue = [userId];
-
-  while (queue.length > 0) {
-    const currentId = queue.shift()!;
-
-    if (visited.has(currentId)) continue;
-    visited.add(currentId);
-
-    const children = await prisma.user.findMany({
-      where: { affiliateParentId: currentId },
-      select: { id: true },
-    });
-
-    for (const child of children) {
-      descendants.push(child.id);
-      queue.push(child.id);
-    }
-  }
-
-  return descendants;
-}
-
-// BFS to verify if nodeId is a descendant of userId
-async function isDescendantOf(userId: string, nodeId: string): Promise<boolean> {
-  if (nodeId === userId) return true;
-
-  const visited = new Set<string>();
-  const queue = [userId];
-
-  while (queue.length > 0) {
-    const currentId = queue.shift()!;
-
-    if (visited.has(currentId)) continue;
-    visited.add(currentId);
-
-    const children = await prisma.user.findMany({
-      where: { affiliateParentId: currentId },
-      select: { id: true },
-    });
-
-    for (const child of children) {
-      if (child.id === nodeId) return true;
-      queue.push(child.id);
-    }
-  }
-
-  return false;
-}
 
 export async function GET(request: NextRequest) {
   try {
@@ -77,9 +26,14 @@ export async function GET(request: NextRequest) {
     }
 
     const { searchParams } = new URL(request.url);
-    const houseId = searchParams.get("houseId") || "betano";
+    const houseNameOrId = searchParams.get("houseId") || "betano";
     const affiliateId = searchParams.get("affiliateId") || "all";
     const timeframe = searchParams.get("timeframe") || "30d";
+
+    const houseId = await resolveHouseId(houseNameOrId);
+    if (!houseId) {
+      return NextResponse.json({ error: "Casa não encontrada" }, { status: 404 });
+    }
 
     const days = TIMEFRAME_DAYS[timeframe] ?? 30;
 
@@ -284,13 +238,37 @@ export async function GET(request: NextRequest) {
     const prevMonthCommissionCents = calculateCommission(prevMonthSnapshots);
     const totalCommissionCents = calculateCommission(currentSnapshots);
 
+    // Calculate comparisons for all metrics
+    const currentMonthRegistros = currentMonthSnapshots.reduce((sum, s) => sum + s.registros, 0);
+    const prevMonthRegistros = prevMonthSnapshots.reduce((sum, s) => sum + s.registros, 0);
+
+    const currentMonthFtds = currentMonthSnapshots.reduce((sum, s) => sum + s.ftds, 0);
+    const prevMonthFtds = prevMonthSnapshots.reduce((sum, s) => sum + s.ftds, 0);
+
+    const currentMonthQftds = currentMonthSnapshots.reduce((sum, s) => sum + s.qftds, 0);
+    const prevMonthQftds = prevMonthSnapshots.reduce((sum, s) => sum + s.qftds, 0);
+
     return NextResponse.json({
       timeline,
       funnel,
       commission: totalCommissionCents / 100,
       comparison: {
-        current: currentMonthCommissionCents / 100,
-        previous: prevMonthCommissionCents / 100,
+        receita: {
+          current: currentMonthCommissionCents / 100,
+          previous: prevMonthCommissionCents / 100,
+        },
+        registros: {
+          current: currentMonthRegistros,
+          previous: prevMonthRegistros,
+        },
+        ftds: {
+          current: currentMonthFtds,
+          previous: prevMonthFtds,
+        },
+        qftds: {
+          current: currentMonthQftds,
+          previous: prevMonthQftds,
+        },
       },
     });
   } catch (error) {

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyToken } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { invalidateHouseCache } from "@/lib/house-utils";
 
 export async function DELETE(
   request: NextRequest,
@@ -36,6 +37,8 @@ export async function DELETE(
     await prisma.house.delete({
       where: { id: params.id },
     });
+
+    invalidateHouseCache();
 
     return NextResponse.json({ message: "House deleted successfully" });
   } catch (error) {
