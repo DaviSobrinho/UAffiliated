@@ -271,8 +271,8 @@ export default function AdminEditSnapshotModal({
           </button>
         </div>
 
-        {/* Toast in Modal */}
-        {toast && (
+        {/* Toast in Modal - só mostra se não estiver em estado de loading */}
+        {toast && !loading && !waitingForRefresh && (
           <div
             className={`px-6 py-3 border-b flex items-center gap-3 animate-in fade-in ${
               toast.type === "success"
@@ -409,14 +409,14 @@ export default function AdminEditSnapshotModal({
           <div className="flex flex-col sm:flex-row gap-3 pt-4 border-t" style={{ borderColor: theme.colors.primary }}>
             <button
               type="submit"
-              disabled={loading || loadingSnapshot}
+              disabled={loading || loadingSnapshot || waitingForRefresh}
               className="flex-1 py-2 rounded-lg text-white font-medium transition border hover:bg-zinc-800/50 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
               style={{
                 borderColor: theme.colors.primary,
-                boxShadow: loadingSnapshot || loading ? "none" : `0 0 12px ${theme.colors.primary}30`,
+                boxShadow: loadingSnapshot || loading || waitingForRefresh ? "none" : `0 0 12px ${theme.colors.primary}30`,
               }}
             >
-              {loadingSnapshot ? "Carregando..." : loading ? "Salvando..." : "Salvar"}
+              {loadingSnapshot ? "Carregando..." : loading || waitingForRefresh ? "Salvando..." : "Salvar"}
             </button>
             <button
               type="button"

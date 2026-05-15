@@ -73,7 +73,8 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     const body = await request.json();
     console.log("[HOUSE-DATA-PUT] Body:", body);
 
-    const { houseId: houseNameOrId, affiliateLink } = body;
+    const { houseId: houseNameOrId, affiliateLink, balance } = body;
+    const decoded = JSON.parse(Buffer.from(token.split('.')[1], 'base64').toString());
 
     if (!houseNameOrId) {
       console.log("[HOUSE-DATA-PUT] Sem houseId");
@@ -106,7 +107,37 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
       }
     }
 
-    console.log("[HOUSE-DATA-PUT] Atualizando UserHouseData...", { userId, houseId, affiliateLink });
+    console.log("[HOUSE-DATA-PUT] Atualizando UserHouseData...", { userId, houseId, affiliateLink, balance });
+
+    // Se balance está sendo atualizado, registrar auditoria
+    if (balance !== undefined) {
+      const currentData = await prisma.userHouseData.findUnique({
+        where: {
+          userId_houseId: {
+            userId,
+            houseId,
+          },
+        },
+      });
+
+      if (currentData && currentData.balance !== balance) {
+        const oldBalance = currentData.balance;
+        const newBalance = balance;
+
+        // Registrar auditoria
+        await prisma.balanceAudit.create({
+          data: {
+            userHouseDataId: currentData.id,
+            userId: decoded.id,
+            userName: decoded.name || "Admin",
+            oldBalance: oldBalance,
+            newBalance: newBalance,
+          },
+        });
+
+        console.log("[HOUSE-DATA-PUT] 📊 Auditoria criada:", { oldBalance, newBalance, adminId: decoded.id });
+      }
+    }
 
     const userHouseData = await prisma.userHouseData.update({
       where: {
@@ -116,7 +147,8 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
         },
       },
       data: {
-        affiliateLink: affiliateLink || "",
+        ...(affiliateLink !== undefined && { affiliateLink: affiliateLink || "" }),
+        ...(balance !== undefined && { balance }),
       },
     });
 

@@ -60,6 +60,9 @@ export default function AdminUserModal({
   const [affiliateLink, setAffiliateLink] = useState("");
   const [savingLink, setSavingLink] = useState(false);
   const [linkMessage, setLinkMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const [balance, setBalance] = useState<string>("");
+  const [savingBalance, setSavingBalance] = useState(false);
+  const [balanceMessage, setBalanceMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [isChildLoading, setIsChildLoading] = useState(false);
   const previousHouseRef = useRef<string>(globalSelectedHouse);
 
@@ -74,12 +77,15 @@ export default function AdminUserModal({
       if (response.ok) {
         const data = await response.json();
         setAffiliateLink(data.userHouseData?.affiliateLink || "");
+        setBalance(String(data.userHouseData?.balance || "0"));
       } else {
         setAffiliateLink("");
+        setBalance("0");
       }
     } catch (err) {
       console.error("[AFFILIATE] Erro ao buscar link:", err);
       setAffiliateLink("");
+      setBalance("0");
     }
   };
 
@@ -112,6 +118,38 @@ export default function AdminUserModal({
       setLinkMessage({ type: "error", text: "Erro ao salvar link de afiliado" });
     } finally {
       setSavingLink(false);
+    }
+  };
+
+  const saveBalance = async () => {
+    try {
+      setSavingBalance(true);
+      setBalanceMessage(null);
+
+      const response = await fetch(`/api/admin/users/${user.id}/house-data`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          houseId: selectedHouse,
+          balance: parseFloat(balance),
+        }),
+      });
+
+      if (response.ok) {
+        console.log("[BALANCE] Saldo salvo com sucesso");
+        setBalanceMessage({ type: "success", text: "Saldo atualizado com sucesso!" });
+        setTimeout(() => setBalanceMessage(null), 3000);
+      } else {
+        const errorData = await response.json();
+        const errorMsg = errorData.error || "Erro ao salvar saldo";
+        console.error("[BALANCE] Erro ao salvar saldo:", response.status, errorMsg);
+        setBalanceMessage({ type: "error", text: errorMsg });
+      }
+    } catch (err) {
+      console.error("[BALANCE] Erro ao salvar saldo:", err);
+      setBalanceMessage({ type: "error", text: "Erro ao salvar saldo" });
+    } finally {
+      setSavingBalance(false);
     }
   };
 
@@ -304,6 +342,49 @@ export default function AdminUserModal({
                 >
                   {linkMessage.type === "success" ? "✓ " : "✕ "}
                   {linkMessage.text}
+                </div>
+              )}
+            </div>
+
+            {/* Saldo Atual */}
+            <div>
+              <label className="block text-sm text-zinc-400 mb-2 font-medium">Saldo Atual</label>
+              <div className="flex flex-col sm:flex-row gap-2">
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={balance}
+                  onChange={(e) => setBalance(e.target.value)}
+                  placeholder="0.00"
+                  className="flex-1 px-4 py-2 bg-zinc-800 border rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:ring-2 transition text-sm"
+                  style={{
+                    borderColor: theme.colors.primary,
+                    "--tw-ring-color": theme.colors.primary,
+                  } as React.CSSProperties}
+                />
+                <button
+                  onClick={saveBalance}
+                  disabled={savingBalance}
+                  className="w-full sm:w-auto px-4 py-2 rounded-lg text-white font-medium transition border hover:bg-zinc-800/50 disabled:opacity-50 whitespace-nowrap"
+                  style={{
+                    borderColor: theme.colors.primary,
+                    boxShadow: `0 0 12px ${theme.colors.primary}30`,
+                  }}
+                >
+                  {savingBalance ? "Salvando..." : "Salvar"}
+                </button>
+              </div>
+              {balanceMessage && (
+                <div
+                  className={`mt-2 px-3 py-2 rounded text-sm font-medium transition ${
+                    balanceMessage.type === "success"
+                      ? "bg-green-500/10 text-green-300 border border-green-500/30"
+                      : "bg-red-500/10 text-red-300 border border-red-500/30"
+                  }`}
+                >
+                  {balanceMessage.type === "success" ? "✓ " : "✕ "}
+                  {balanceMessage.text}
                 </div>
               )}
             </div>
