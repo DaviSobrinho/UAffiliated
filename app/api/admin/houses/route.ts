@@ -66,11 +66,13 @@ export async function POST(request: NextRequest) {
       },
     });
 
+    console.log(`[HOUSES-POST] ✓ Casa criada: ${house.id} (${house.name})`);
+
     invalidateHouseCache();
 
     return NextResponse.json({ house }, { status: 201 });
   } catch (error) {
-    console.error("Error creating house:", error);
+    console.error("[HOUSES-POST] Erro ao criar casa:", error);
     return NextResponse.json(
       { error: "Failed to create house" },
       { status: 500 }

@@ -190,11 +190,13 @@ export default function AdminUserModal({
 
   useEffect(() => {
     if (isOpen) {
-      setSelectedHouse(globalSelectedHouse);
-      fetchSnapshots(globalSelectedHouse, selectedPeriod);
-      fetchAffiliateLink(globalSelectedHouse);
+      // Use global selected house if available, otherwise use first available or default
+      const houseToUse = globalSelectedHouse || "betano";
+      setSelectedHouse(houseToUse);
+      fetchSnapshots(houseToUse, selectedPeriod);
+      fetchAffiliateLink(houseToUse);
     }
-  }, [isOpen]);
+  }, [isOpen, globalSelectedHouse]);
 
   useEffect(() => {
     if (isOpen && selectedHouse !== previousHouseRef.current) {

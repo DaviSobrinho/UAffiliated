@@ -88,8 +88,8 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       return NextResponse.json({ error: "Casa não encontrada" }, { status: 404 });
     }
 
-    // Fetch user's house data to get CPA
-    const userHouseData = await prisma.userHouseData.findUnique({
+    // Fetch user's house data to get CPA, create if not exists
+    let userHouseData = await prisma.userHouseData.findUnique({
       where: {
         userId_houseId: {
           userId,
@@ -99,7 +99,19 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     });
 
     if (!userHouseData) {
-      return NextResponse.json({ error: "Dados de casa não encontrados para este usuário" }, { status: 404 });
+      // Create userHouseData if it doesn't exist
+      userHouseData = await prisma.userHouseData.create({
+        data: {
+          userId,
+          houseId,
+          cpa: 0,
+          affiliateLink: `${houseId}/${userId}`,
+          registros: 0,
+          ftds: 0,
+          qftds: 0,
+        },
+      });
+      console.log(`[SNAPSHOT-POST] ℹ️ userHouseData criado para userId=${userId}, houseId=${houseId}`);
     }
 
     // Parse date in UTC format to avoid timezone issues

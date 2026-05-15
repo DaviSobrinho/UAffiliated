@@ -67,24 +67,32 @@ export async function GET(request: NextRequest) {
 
     console.log(`[DASHBOARD] ✓ Usuário encontrado: ${user.name}`);
 
-    // Get house data
-    const houseData = await prisma.userHouseData.findUnique({
+    // Get house data (or create defaults if not found)
+    let houseData = await prisma.userHouseData.findUnique({
       where: { userId_houseId: { userId: decoded.id, houseId } },
     });
 
     if (!houseData) {
-      console.log(`[DASHBOARD] ❌ userHouseData não encontrado para userId=${decoded.id}, houseId=${houseId}`);
+      console.log(
+        `[DASHBOARD] ℹ️ userHouseData não encontrado, usando defaults para userId=${decoded.id}, houseId=${houseId}`
+      );
 
-      // Debug: Show what houses this user has
-      const allUserHouses = await prisma.userHouseData.findMany({
-        where: { userId: decoded.id },
-      });
-      console.log(`[DASHBOARD] 📊 Casas disponíveis para este usuário: ${allUserHouses.map(h => h.houseId).join(', ')}`);
-
-      return NextResponse.json({ error: "Dados da casa não encontrados" }, { status: 404 });
+      // Return default values when userHouseData doesn't exist
+      houseData = {
+        id: `default-${decoded.id}-${houseId}`,
+        userId: decoded.id,
+        houseId,
+        cpa: 0,
+        affiliateLink: `${houseId.toLowerCase()}/${decoded.id}`,
+        registros: 0,
+        ftds: 0,
+        qftds: 0,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+    } else {
+      console.log(`[DASHBOARD] ✓ Dados da casa encontrados, CPA: ${houseData.cpa}`);
     }
-
-    console.log(`[DASHBOARD] ✓ Dados da casa encontrados, CPA: ${houseData.cpa}`);
 
     // Get period snapshots
     const now = new Date();

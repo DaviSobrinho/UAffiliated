@@ -145,7 +145,7 @@ export default function HousesManagement() {
 
       if (res.ok) {
         setHouseMessage("✅ Cor da casa atualizada com sucesso!");
-        setEditingHouseColor(null);
+        setEditingColor({});
         fetchHouses();
         setTimeout(() => setHouseMessage(""), 3000);
       } else {
@@ -291,7 +291,7 @@ export default function HousesManagement() {
                     </div>
                     <label className="flex-1">
                       <span className="text-zinc-300 text-xs font-medium block mb-1">Upload Logo</span>
-                      <p className="text-zinc-500 text-xs mb-2">Recomendado: máx 2MB, proporção 16:9 (ex: 1600x900 ou 800x450)</p>
+                      <p className="text-zinc-500 text-xs mb-2">Recomendado: máx 2MB, proporção 21:9 (ex: 2100x900 ou 1050x450)</p>
                       <input
                         type="file"
                         accept="image/*"

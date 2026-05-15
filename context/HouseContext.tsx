@@ -18,17 +18,35 @@ const getThemeForHouse = async (houseId: string): Promise<HouseTheme> => {
     return HOUSE_THEMES[houseId];
   }
 
-  // Se é um UUID, tenta buscar o nome da casa
+  // Se é um UUID, tenta buscar o nome e cor da casa
   try {
     const res = await fetch("/api/admin/houses");
     if (res.ok) {
       const data = await res.json();
       const house = data.houses?.find((h: any) => h.id === houseId);
       if (house) {
+        // Tenta encontrar um tema pré-definido por nome
         const theme = Object.values(HOUSE_THEMES).find(
           (t) => t.name.toLowerCase() === house.name.toLowerCase()
         );
         if (theme) return theme;
+
+        // Se não encontrar tema pré-definido, cria um tema dinâmico com a cor do banco
+        if (house.color) {
+          return {
+            id: houseId,
+            name: house.name,
+            logo: "",
+            colors: {
+              primary: house.color,
+              primaryLight: house.color + "dd",
+              primaryDark: house.color + "99",
+              secondary: "#FFFFFF",
+              accent: house.color + "cc",
+              background: "#0f172a",
+            },
+          };
+        }
       }
     }
   } catch (err) {

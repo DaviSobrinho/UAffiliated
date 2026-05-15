@@ -5,6 +5,13 @@ import Image from "next/image";
 import { ChevronDown } from "lucide-react";
 import { HOUSE_THEMES } from "@/lib/houseThemes";
 
+interface DynamicHouse {
+  id: string;
+  name: string;
+  color: string;
+  logoUrl?: string;
+}
+
 interface StatelessHouseSelectorProps {
   value: string;
   onChange: (houseId: string) => void;
@@ -19,7 +26,27 @@ export default function StatelessHouseSelector({
   disabled = false,
 }: StatelessHouseSelectorProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const [dynamicHouses, setDynamicHouses] = useState<DynamicHouse[]>([]);
+  const [loadingHouses, setLoadingHouses] = useState(true);
   const dropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const fetchHouses = async () => {
+      try {
+        const res = await fetch("/api/admin/houses");
+        if (res.ok) {
+          const data = await res.json();
+          setDynamicHouses(data.houses || []);
+        }
+      } catch (err) {
+        console.error("Erro ao buscar casas:", err);
+      } finally {
+        setLoadingHouses(false);
+      }
+    };
+
+    fetchHouses();
+  }, []);
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -32,7 +59,33 @@ export default function StatelessHouseSelector({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const currentTheme = HOUSE_THEMES[value];
+  const getThemeByName = (houseName: string) => {
+    return Object.values(HOUSE_THEMES).find(
+      (theme) => theme.name.toLowerCase() === houseName.toLowerCase()
+    );
+  };
+
+  const getDisplayLogo = (house: DynamicHouse) => {
+    const theme = getThemeByName(house.name);
+    return house.logoUrl || theme?.logo || "";
+  };
+
+  const currentHouse = dynamicHouses.find((h) => h.id === value);
+  const currentTheme = getThemeByName(currentHouse?.name || "") || HOUSE_THEMES.betano;
+  const currentLogo = currentHouse ? getDisplayLogo(currentHouse) : currentTheme.logo;
+
+  // Combine dynamic houses with pre-defined themes
+  const allHouses = [
+    ...dynamicHouses,
+    ...Object.values(HOUSE_THEMES)
+      .filter(theme => !dynamicHouses.find(h => h.name.toLowerCase() === theme.name.toLowerCase()))
+      .map(theme => ({
+        id: theme.id,
+        name: theme.name,
+        color: theme.colors.primary,
+        logoUrl: theme.logo,
+      })),
+  ];
 
   return (
     <div ref={dropdownRef} className="relative w-full">
@@ -47,13 +100,15 @@ export default function StatelessHouseSelector({
         }}
       >
         <div className="flex-1 flex items-center gap-3 min-w-0">
-          <Image
-            src={currentTheme.logo}
-            alt={currentTheme.name}
-            width={120}
-            height={32}
-            className="h-6 w-auto object-contain"
-          />
+          {currentLogo && (
+            <Image
+              src={currentLogo}
+              alt={currentHouse?.name || "Casa"}
+              width={120}
+              height={32}
+              className="h-6 w-auto object-contain"
+            />
+          )}
         </div>
         <ChevronDown
           size={18}
@@ -70,34 +125,44 @@ export default function StatelessHouseSelector({
           }}
         >
           <div className="max-h-96 overflow-y-auto">
-            {Object.values(HOUSE_THEMES).map((house) => (
-              <button
-                key={house.id}
-                type="button"
-                onClick={() => {
-                  onChange(house.id);
-                  setIsOpen(false);
-                }}
-                className="w-full flex items-center gap-3 px-4 py-3 transition bg-zinc-800 hover:bg-zinc-700 border-l-4 cursor-pointer"
-                style={{
-                  borderLeftColor: value === house.id ? house.colors.primary : "transparent",
-                  boxShadow:
-                    value === house.id
-                      ? `inset 0 0 15px ${house.colors.primary}30`
-                      : undefined,
-                }}
-              >
-                <div className="flex-1 flex items-center justify-center min-w-0">
-                  <Image
-                    src={house.logo}
-                    alt={house.name}
-                    width={140}
-                    height={40}
-                    className="h-8 w-auto object-contain"
-                  />
-                </div>
-              </button>
-            ))}
+            {loadingHouses ? (
+              <div className="px-4 py-3 text-zinc-400 text-sm">Carregando casas...</div>
+            ) : (
+              allHouses.map((house) => {
+                const theme = getThemeByName(house.name);
+                const color = house.color || theme?.colors.primary || primaryColor;
+                return (
+                  <button
+                    key={house.id}
+                    type="button"
+                    onClick={() => {
+                      onChange(house.id);
+                      setIsOpen(false);
+                    }}
+                    className="w-full flex items-center gap-3 px-4 py-3 transition bg-zinc-800 hover:bg-zinc-700 border-l-4 cursor-pointer"
+                    style={{
+                      borderLeftColor: value === house.id ? color : "transparent",
+                      boxShadow:
+                        value === house.id
+                          ? `inset 0 0 15px ${color}30`
+                          : undefined,
+                    }}
+                  >
+                    <div className="flex-1 flex items-center justify-center min-w-0">
+                      {house.logoUrl && (
+                        <Image
+                          src={house.logoUrl}
+                          alt={house.name}
+                          width={140}
+                          height={40}
+                          className="h-8 w-auto object-contain"
+                        />
+                      )}
+                    </div>
+                  </button>
+                );
+              })
+            )}
           </div>
         </div>
       )}

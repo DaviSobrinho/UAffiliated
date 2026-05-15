@@ -96,30 +96,45 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
       }
     }
 
-    if (balance !== undefined) {
-      const currentData = await prisma.userHouseData.findUnique({
-        where: {
-          userId_houseId: {
-            userId,
-            houseId,
-          },
+    // Check if userHouseData exists, create if not
+    let currentData = await prisma.userHouseData.findUnique({
+      where: {
+        userId_houseId: {
+          userId,
+          houseId,
+        },
+      },
+    });
+
+    if (!currentData) {
+      // Create userHouseData if it doesn't exist
+      currentData = await prisma.userHouseData.create({
+        data: {
+          userId,
+          houseId,
+          cpa: 0,
+          affiliateLink: affiliateLink || `${houseId}/${userId}`,
+          registros: 0,
+          ftds: 0,
+          qftds: 0,
+          ...(balance !== undefined && { balance }),
         },
       });
+    }
 
-      if (currentData && currentData.balance !== balance) {
-        const oldBalance = currentData.balance;
-        const newBalance = balance;
+    if (balance !== undefined && currentData.balance !== balance) {
+      const oldBalance = currentData.balance;
+      const newBalance = balance;
 
-        await prisma.balanceAudit.create({
-          data: {
-            userHouseDataId: currentData.id,
-            userId: decoded.id,
-            userName: decoded.name || "Admin",
-            oldBalance: oldBalance,
-            newBalance: newBalance,
-          },
-        });
-      }
+      await prisma.balanceAudit.create({
+        data: {
+          userHouseDataId: currentData.id,
+          userId: decoded.id,
+          userName: decoded.name || "Admin",
+          oldBalance: oldBalance,
+          newBalance: newBalance,
+        },
+      });
     }
 
     const userHouseData = await prisma.userHouseData.update({
