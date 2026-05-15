@@ -5,7 +5,7 @@ import { createContext, useContext, useState, useCallback, ReactNode } from "rea
 interface BalanceContextType {
   balance: string;
   setBalance: (value: string) => void;
-  refreshBalance: (userId: string, houseId: string) => Promise<void>;
+  refreshBalance: (houseId: string) => Promise<void>;
 }
 
 const BalanceContext = createContext<BalanceContextType | undefined>(undefined);
@@ -14,8 +14,15 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
   const [balance, setBalance] = useState("R$ 0,00");
 
   const refreshBalance = useCallback(
-    async (userId: string, houseId: string) => {
+    async (houseId: string) => {
       try {
+        // Always get current logged-in user from localStorage
+        const userStr = localStorage.getItem("user");
+        if (!userStr) return;
+
+        const userData = JSON.parse(userStr);
+        const userId = userData.id;
+
         const response = await fetch(
           `/api/admin/users/${userId}/house-data?houseId=${houseId}`
         );

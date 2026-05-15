@@ -67,7 +67,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     }
 
     const body = await request.json();
-    const { houseId: houseNameOrId, affiliateLink, balance } = body;
+    const { houseId: houseNameOrId, affiliateLink, cpa, balance } = body;
     const decoded = JSON.parse(Buffer.from(token.split('.')[1], 'base64').toString());
 
     if (!houseNameOrId) {
@@ -146,6 +146,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
       },
       data: {
         ...(affiliateLink !== undefined && { affiliateLink: affiliateLink || "" }),
+        ...(cpa !== undefined && { cpa }),
         ...(balance !== undefined && { balance }),
       },
     });

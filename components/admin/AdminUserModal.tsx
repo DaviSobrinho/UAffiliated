@@ -63,6 +63,9 @@ export default function AdminUserModal({
   const [affiliateLink, setAffiliateLink] = useState("");
   const [savingLink, setSavingLink] = useState(false);
   const [linkMessage, setLinkMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const [cpa, setCpa] = useState<string>("");
+  const [savingCpa, setSavingCpa] = useState(false);
+  const [cpaMessage, setCpaMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [balance, setBalance] = useState<string>("");
   const [savingBalance, setSavingBalance] = useState(false);
   const [balanceMessage, setBalanceMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
@@ -80,16 +83,19 @@ export default function AdminUserModal({
       if (response.ok) {
         const data = await response.json();
         setAffiliateLink(data.userHouseData?.affiliateLink || "");
+        setCpa(String(data.userHouseData?.cpa || "0"));
         const reais = parseFloat(data.userHouseData?.balance || "0");
         const centavos = Math.round(reais * 100);
         setBalance(String(centavos));
       } else {
         setAffiliateLink("");
+        setCpa("0");
         setBalance("0");
       }
     } catch (err) {
       console.error("[AFFILIATE] Erro ao buscar link:", err);
       setAffiliateLink("");
+      setCpa("0");
       setBalance("0");
     }
   };
@@ -126,6 +132,38 @@ export default function AdminUserModal({
     }
   };
 
+  const saveCpa = async () => {
+    try {
+      setSavingCpa(true);
+      setCpaMessage(null);
+
+      const response = await fetch(`/api/admin/users/${user.id}/house-data`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          houseId: selectedHouse,
+          cpa: parseFloat(cpa || "0"),
+        }),
+      });
+
+      if (response.ok) {
+        console.log("[CPA] CPA salvo com sucesso");
+        setCpaMessage({ type: "success", text: "CPA atualizado com sucesso!" });
+        setTimeout(() => setCpaMessage(null), 3000);
+      } else {
+        const errorData = await response.json();
+        const errorMsg = errorData.error || "Erro ao salvar CPA";
+        console.error("[CPA] Erro ao salvar CPA:", response.status, errorMsg);
+        setCpaMessage({ type: "error", text: errorMsg });
+      }
+    } catch (err) {
+      console.error("[CPA] Erro ao salvar CPA:", err);
+      setCpaMessage({ type: "error", text: "Erro ao salvar CPA" });
+    } finally {
+      setSavingCpa(false);
+    }
+  };
+
   const saveBalance = async () => {
     try {
       setSavingBalance(true);
@@ -146,7 +184,7 @@ export default function AdminUserModal({
       if (response.ok) {
         console.log("[BALANCE] Saldo salvo com sucesso");
         setBalanceMessage({ type: "success", text: "Saldo atualizado com sucesso!" });
-        refreshBalance(user.id, selectedHouse);
+        refreshBalance(selectedHouse);
         setTimeout(() => setBalanceMessage(null), 3000);
       } else {
         const errorData = await response.json();
@@ -354,6 +392,49 @@ export default function AdminUserModal({
                 >
                   {linkMessage.type === "success" ? "✓ " : "✕ "}
                   {linkMessage.text}
+                </div>
+              )}
+            </div>
+
+            {/* CPA */}
+            <div>
+              <label className="block text-sm text-zinc-400 mb-2 font-medium">CPA</label>
+              <div className="flex flex-col sm:flex-row gap-2">
+                <input
+                  type="number"
+                  value={cpa}
+                  onChange={(e) => setCpa(e.target.value)}
+                  placeholder="0.00"
+                  step="0.01"
+                  min="0"
+                  className="flex-1 px-4 py-2 bg-zinc-800 border rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:ring-2 transition text-sm"
+                  style={{
+                    borderColor: theme.colors.primary,
+                    "--tw-ring-color": theme.colors.primary,
+                  } as React.CSSProperties}
+                />
+                <button
+                  onClick={saveCpa}
+                  disabled={savingCpa}
+                  className="w-full sm:w-auto px-4 py-2 rounded-lg text-white font-medium transition border hover:bg-zinc-800/50 disabled:opacity-50 whitespace-nowrap"
+                  style={{
+                    borderColor: theme.colors.primary,
+                    boxShadow: `0 0 12px ${theme.colors.primary}30`,
+                  }}
+                >
+                  {savingCpa ? "Salvando..." : "Salvar"}
+                </button>
+              </div>
+              {cpaMessage && (
+                <div
+                  className={`mt-2 px-3 py-2 rounded text-sm font-medium transition ${
+                    cpaMessage.type === "success"
+                      ? "bg-green-500/10 text-green-300 border border-green-500/30"
+                      : "bg-red-500/10 text-red-300 border border-red-500/30"
+                  }`}
+                >
+                  {cpaMessage.type === "success" ? "✓ " : "✕ "}
+                  {cpaMessage.text}
                 </div>
               )}
             </div>

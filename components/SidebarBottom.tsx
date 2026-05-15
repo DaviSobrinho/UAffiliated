@@ -12,10 +12,8 @@ export default function SidebarBottom() {
   const { balance, refreshBalance } = useBalance();
 
   useEffect(() => {
-    const user = localStorage.getItem("user");
-    if (user && selectedHouse) {
-      const userData = JSON.parse(user);
-      refreshBalance(userData.id, selectedHouse);
+    if (selectedHouse) {
+      refreshBalance(selectedHouse);
     }
   }, [selectedHouse, refreshBalance]);
 
