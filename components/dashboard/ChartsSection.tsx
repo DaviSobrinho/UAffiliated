@@ -40,10 +40,20 @@ export default function ChartsSection({ houseId, timeframe, affiliateId, viewing
         let chartAffiliateId: string;
         if (showTeamPerformance) {
           // Show team: use the current affiliateId (whether "all" or a specific user)
+          // When "all", show logged-in user's entire team
+          // When specific user, show that user's team (including themselves)
           chartAffiliateId = affiliateId;
         } else {
-          // Show personal: if a specific affiliate is selected, use it; otherwise use the logged-in user
-          chartAffiliateId = affiliateId !== "all" ? affiliateId : userId;
+          // Show personal: show only the specific user
+          // If a specific affiliate is selected (not "all"), use it
+          // Otherwise, use the logged-in user's ID
+          if (affiliateId !== "all") {
+            // A specific user is selected - show only that user
+            chartAffiliateId = affiliateId;
+          } else {
+            // No specific user selected - show only the logged-in user
+            chartAffiliateId = userId;
+          }
         }
 
         const res = await fetch(
@@ -51,8 +61,10 @@ export default function ChartsSection({ houseId, timeframe, affiliateId, viewing
         );
         if (res.ok) {
           const data = await res.json();
+          console.log(`[Charts] Data fetched: affiliateId=${chartAffiliateId}, includeDescendants=${showTeamPerformance}, timeline=${data.timeline?.length || 0} days`);
           setChartsData(data);
         } else {
+          console.error(`[Charts] API error: ${res.status}`, await res.json());
           setChartsData(null);
         }
       } catch (err) {
