@@ -85,13 +85,15 @@ export default function DashboardPage() {
 
     useEffect(() => {
         if (selectedHouse && selectedHouse !== "default" && user?.id) {
-            // Reset affiliate filter when viewing a different user
-            setSelectedAffiliateId("all");
+            // Reset affiliate filter only when viewing a different user
+            if (viewingUser) {
+                setSelectedAffiliateId("all");
+            }
             fetchHouseData();
             // Also refresh balance when house changes
             refreshBalance(selectedHouse);
         }
-    }, [selectedHouse, user?.id, timeframe, viewingUser, refreshBalance]);
+    }, [selectedHouse, user?.id, viewingUser]);
 
     useEffect(() => {
         if (refreshCooldown > 0) {
