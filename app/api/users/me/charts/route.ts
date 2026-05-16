@@ -29,6 +29,7 @@ export async function GET(request: NextRequest) {
     const houseNameOrId = searchParams.get("houseId") || "betano";
     const affiliateId = searchParams.get("affiliateId") || "all";
     const timeframe = searchParams.get("timeframe") || "30d";
+    const includeDescendants = searchParams.get("includeDescendants") !== "false";
 
     const houseId = await resolveHouseId(houseNameOrId);
     if (!houseId) {
@@ -55,7 +56,13 @@ export async function GET(request: NextRequest) {
           );
         }
       }
-      targetIds = await getAllDescendants(affiliateId);
+      // If includeDescendants is false, only include the specific affiliate
+      // Otherwise, include the affiliate and all its descendants
+      if (includeDescendants) {
+        targetIds = await getAllDescendants(affiliateId);
+      } else {
+        targetIds = [affiliateId];
+      }
     }
 
     // Compute date boundaries for timeline (based on timeframe)

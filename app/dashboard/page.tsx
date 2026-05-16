@@ -16,7 +16,7 @@ import { useBalance } from "@/context/BalanceContext";
 import { SkeletonBox, SkeletonLine } from "@/components/Skeleton";
 import ReferralDialog from "@/components/dashboard/ReferralDialog";
 import { useEffect, useState } from "react";
-import { RotateCcw } from "lucide-react";
+import { RotateCcw, User, Users } from "lucide-react";
 
 interface User {
     id: string;
@@ -67,6 +67,7 @@ export default function DashboardPage() {
     const [hasReferrer, setHasReferrer] = useState(true);
     const [showReferralDialog, setShowReferralDialog] = useState(false);
     const [refreshCooldown, setRefreshCooldown] = useState(0);
+    const [showTeamPerformance, setShowTeamPerformance] = useState(true);
 
     useEffect(() => {
         const storedUser = localStorage.getItem("user");
@@ -442,13 +443,50 @@ export default function DashboardPage() {
                     )}
                 </div>
 
-                {/* Charts Section */}
-                <ChartsSection
-                    houseId={selectedHouse}
-                    timeframe={timeframe}
-                    affiliateId={viewingUser ? viewingUser.id : selectedAffiliateId}
-                    viewingUserId={viewingUser?.id}
-                />
+                {/* Charts Section with Toggle */}
+                <div className="space-y-4">
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                        <div>
+                            <h2 className="text-lg md:text-xl font-bold text-white">Gráficos</h2>
+                            <p className="text-zinc-500 text-xs md:text-sm">
+                                Exibir gráficos com base no usuário selecionado ou na equipe do usuário
+                            </p>
+                        </div>
+                        <div className="flex gap-2 border border-zinc-800 rounded-lg p-1 bg-zinc-900 w-fit">
+                            <button
+                                onClick={() => setShowTeamPerformance(false)}
+                                className={`flex items-center gap-2 px-3 py-1.5 rounded text-sm font-medium transition ${
+                                    !showTeamPerformance
+                                        ? "bg-zinc-700 text-white"
+                                        : "text-zinc-400 hover:text-white"
+                                }`}
+                            >
+                                <User size={16} />
+                                <span className="hidden sm:inline">Usuário</span>
+                            </button>
+                            <button
+                                onClick={() => setShowTeamPerformance(true)}
+                                className={`flex items-center gap-2 px-3 py-1.5 rounded text-sm font-medium transition ${
+                                    showTeamPerformance
+                                        ? "bg-zinc-700 text-white"
+                                        : "text-zinc-400 hover:text-white"
+                                }`}
+                            >
+                                <Users size={16} />
+                                <span className="hidden sm:inline">Equipe</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <ChartsSection
+                        houseId={selectedHouse}
+                        timeframe={timeframe}
+                        affiliateId={viewingUser ? viewingUser.id : selectedAffiliateId}
+                        viewingUserId={viewingUser?.id}
+                        userId={user?.id || ""}
+                        showTeamPerformance={showTeamPerformance}
+                    />
+                </div>
 
                 {/* Info Box */}
                 <InfoBox

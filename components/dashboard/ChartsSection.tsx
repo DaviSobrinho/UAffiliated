@@ -21,20 +21,33 @@ interface ChartsSectionProps {
   timeframe: string;
   affiliateId: string;
   viewingUserId?: string;
+  userId: string;
+  showTeamPerformance?: boolean;
 }
 
-export default function ChartsSection({ houseId, timeframe, affiliateId, viewingUserId }: ChartsSectionProps) {
+export default function ChartsSection({ houseId, timeframe, affiliateId, viewingUserId, userId, showTeamPerformance = true }: ChartsSectionProps) {
   const [chartsData, setChartsData] = useState<ChartsData | null>(null);
   const [loading, setLoading] = useState(false);
   const [selectedMetric, setSelectedMetric] = useState<"receita" | "registros" | "ftds" | "qftds">("receita");
 
-  // Fetch charts data when houseId, timeframe, or affiliateId changes
+  // Fetch charts data when houseId, timeframe, affiliateId, or showTeamPerformance changes
   useEffect(() => {
     const fetchChartsData = async () => {
       try {
         setLoading(true);
+        // When showing team performance, use the affiliate ID as-is (could be "all" or specific user)
+        // When showing personal performance, use the specific user ID or logged-in user's ID
+        let chartAffiliateId: string;
+        if (showTeamPerformance) {
+          // Show team: use the current affiliateId (whether "all" or a specific user)
+          chartAffiliateId = affiliateId;
+        } else {
+          // Show personal: if a specific affiliate is selected, use it; otherwise use the logged-in user
+          chartAffiliateId = affiliateId !== "all" ? affiliateId : userId;
+        }
+
         const res = await fetch(
-          `/api/users/me/charts?houseId=${houseId}&affiliateId=${affiliateId}&timeframe=${timeframe}`
+          `/api/users/me/charts?houseId=${houseId}&affiliateId=${chartAffiliateId}&timeframe=${timeframe}&includeDescendants=${showTeamPerformance}`
         );
         if (res.ok) {
           const data = await res.json();
@@ -53,7 +66,7 @@ export default function ChartsSection({ houseId, timeframe, affiliateId, viewing
     if (houseId && houseId !== "default") {
       fetchChartsData();
     }
-  }, [houseId, timeframe, affiliateId]);
+  }, [houseId, timeframe, affiliateId, userId, showTeamPerformance]);
 
   return (
     <div className="space-y-4 md:space-y-6">
