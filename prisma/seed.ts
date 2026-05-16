@@ -82,6 +82,16 @@ async function main() {
     },
   });
 
+  // N1 - Admin 2 (for client testing)
+  const n1_admin2 = await prisma.user.create({
+    data: {
+      email: "admin2@example.com",
+      password: await bcrypt.hash("admin123", 10),
+      name: "Admin Cliente (N1)",
+      role: "ADMIN",
+    },
+  });
+
   // N2 - 3 usuários
   const n2_users = [];
   for (let i = 1; i <= 3; i++) {
@@ -207,8 +217,8 @@ async function main() {
     }
   };
 
-  // Para TODOS os usuários: dados de 1 semana
-  console.log("📊 Gerando dados de 1 semana para todos os usuários...");
+  // Para TODOS os usuários EXCETO admin2: dados de 1 semana
+  console.log("📊 Gerando dados de 1 semana para todos os usuários (exceto admin2)...");
   const allUsers = [
     { user: n1, cpa: 200 },
     ...n2_users.map((u) => ({ user: u, cpa: 150 })),
@@ -220,6 +230,8 @@ async function main() {
   for (const { user, cpa } of allUsers) {
     await createUserHouseData(user.id, cpa, 7); // 7 dias
   }
+
+  console.log("✅ Admin2 criada ZERADA (sem dados de casas)");
 
   // Para admin, 1 N2 direto, e 1 N3 direto: dados de 9 meses (270 dias)
   console.log("📈 Gerando dados de 9 meses para admin, 1 N2 e 1 N3...");
