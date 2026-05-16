@@ -154,18 +154,22 @@ export async function GET(request: NextRequest) {
       targetUserHouseData.map((data) => [data.userId, Math.round(Number(data.cpa) * 100)])
     );
 
-    // Get direct children of the commission user
-    const directChildren = await prisma.user.findMany({
-      where: { affiliateParentId: commissionUserId },
-      select: { id: true },
-    });
-    const directChildrenIds = directChildren.map(c => c.id);
+    // Get direct children of the commission user (only if including descendants)
+    let directChildrenIds: string[] = [];
+    let directChildrenSubtrees = new Map<string, Set<string>>();
 
-    // Precalculate subtrees for all direct children
-    const directChildrenSubtrees = new Map<string, Set<string>>();
-    for (const directChildId of directChildrenIds) {
-      const descendants = await getAllDescendants(directChildId);
-      directChildrenSubtrees.set(directChildId, new Set([directChildId, ...descendants]));
+    if (includeDescendants) {
+      const directChildren = await prisma.user.findMany({
+        where: { affiliateParentId: commissionUserId },
+        select: { id: true },
+      });
+      directChildrenIds = directChildren.map(c => c.id);
+
+      // Precalculate subtrees for all direct children
+      for (const directChildId of directChildrenIds) {
+        const descendants = await getAllDescendants(directChildId);
+        directChildrenSubtrees.set(directChildId, new Set([directChildId, ...descendants]));
+      }
     }
 
     // Helper function to calculate commission correctly
@@ -207,7 +211,7 @@ export async function GET(request: NextRequest) {
 
     // Add own commission to timeline
     for (const snapshot of currentSnapshots) {
-      if (snapshot.userId === decoded.id) {
+      if (snapshot.userId === commissionUserId) {
         const dateStr = new Date(snapshot.date).toISOString().slice(0, 10);
         const currentCents = timelineMapCents.get(dateStr) || 0;
         const myCommissionCents = userCpaCents * snapshot.qftds;
