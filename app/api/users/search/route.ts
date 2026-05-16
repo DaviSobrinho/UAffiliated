@@ -37,7 +37,7 @@ async function getUserLevel(userId: string): Promise<number> {
     const user = await prisma.user.findUnique({
       where: { id: currentId },
       select: { affiliateParentId: true },
-    });
+    }) as { affiliateParentId: string | null } | null;
 
     if (!user || !user.affiliateParentId) break;
 
