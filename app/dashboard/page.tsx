@@ -243,8 +243,8 @@ export default function DashboardPage() {
                     setComissaoEquipe(formatCPA(data.performance.comissaoEquipe));
                     setTotalProprio(formatCPA(data.performance.totalProprio));
 
-                    if (viewingUser?.id) {
-                        await refreshBalance(viewingUser.id, selectedHouse);
+                    if (selectedHouse) {
+                        await refreshBalance(selectedHouse);
                     }
                 } else {
                     setHouseData(null);
@@ -278,8 +278,8 @@ export default function DashboardPage() {
                     setComissaoEquipe(formatCPA(data.performance.comissaoEquipe));
                     setTotalProprio(formatCPA(data.performance.totalProprio));
 
-                    if (user?.id) {
-                        await refreshBalance(user.id, selectedHouse);
+                    if (selectedHouse) {
+                        await refreshBalance(selectedHouse);
                     }
                 } else {
                     setHouseData(null);
