@@ -3,8 +3,23 @@ import { prisma } from "@/lib/prisma";
 import { verifyToken } from "@/lib/auth";
 
 function extractReferralCodeFromUrl(input: string): string {
-  const url = new URL(input, "http://localhost");
-  return url.searchParams.get("ref") || input;
+  try {
+    // If input starts with http:// or https://, parse as full URL
+    if (input.startsWith("http://") || input.startsWith("https://")) {
+      const url = new URL(input);
+      return url.searchParams.get("ref") || input;
+    }
+    // If input starts with ?, parse as query string
+    if (input.startsWith("?")) {
+      const url = new URL(`http://example.com${input}`);
+      return url.searchParams.get("ref") || input;
+    }
+    // Otherwise treat as plain referral code (user ID)
+    return input;
+  } catch {
+    // If parsing fails, return input as-is
+    return input;
+  }
 }
 
 export async function PATCH(request: NextRequest) {
