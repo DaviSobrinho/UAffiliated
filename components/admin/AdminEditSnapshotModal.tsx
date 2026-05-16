@@ -226,9 +226,9 @@ export default function AdminEditSnapshotModal({
         body: JSON.stringify({
           houseId,
           date: snapshotDate,
-          registros: registros ? parseInt(registros as string) : 0,
-          ftds: ftds ? parseInt(ftds as string) : 0,
-          qftds: qftds ? parseInt(qftds as string) : 0,
+          registros: registros ? parseInt(registros as unknown as string) : 0,
+          ftds: ftds ? parseInt(ftds as unknown as string) : 0,
+          qftds: qftds ? parseInt(qftds as unknown as string) : 0,
         }),
       });
 
