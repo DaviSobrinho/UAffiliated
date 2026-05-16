@@ -3,6 +3,10 @@ import { prisma } from "@/lib/prisma";
 import { verifyToken } from "@/lib/auth";
 import { resolveHouseId } from "@/lib/house-utils";
 
+interface UserParent {
+  affiliateParentId: string | null;
+}
+
 async function isDescendantOf(userId: string, nodeId: string): Promise<boolean> {
   if (nodeId === userId) return true;
 
@@ -34,7 +38,7 @@ async function getUserLevel(userId: string): Promise<number> {
   let currentId: string | null = userId;
 
   while (currentId) {
-    const user = await prisma.user.findUnique({
+    const user: UserParent | null = await prisma.user.findUnique({
       where: { id: currentId },
       select: { affiliateParentId: true },
     });
