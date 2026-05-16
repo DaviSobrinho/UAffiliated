@@ -215,7 +215,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     const totalProprio = meuRev + comissaoEquipe;
 
     // Get team stats (all descendants)
-    const allDescendants = await getAllDescendants(viewedUserId);
+    const allDescendants = await getAllDescendants(userId);
     const teamSnapshots = await prisma.dailySnapshot.findMany({
       where: {
         userId: { in: allDescendants },
