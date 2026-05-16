@@ -13,6 +13,7 @@ import TimeframeSelector from "@/components/TimeframeSelector";
 import AffiliateFilter from "@/components/dashboard/AffiliateFilter";
 import { useHouse } from "@/context/HouseContext";
 import { SkeletonBox, SkeletonLine } from "@/components/Skeleton";
+import { Affiliate } from "@/types/affiliate";
 import { useState, useEffect } from "react";
 
 const formatCPA = (value: number | string | null | undefined): string => {
@@ -37,16 +38,6 @@ interface UserHouseData {
   registros: number;
   ftds: number;
   qftds: number;
-}
-
-interface Affiliate {
-  id: string;
-  name: string;
-  email: string;
-  commission: string;
-  linkedDate: string;
-  cpa: number | null;
-  cpaEditedOnce: boolean;
 }
 
 export default function TeamPage() {

@@ -22,7 +22,7 @@ export default function PerformanceEquipe({
           Performance da Equipe de {userName}
         </h2>
         <p className="text-zinc-500 text-xs md:text-sm">
-          Resultados dos afiliados abaixo de você
+          Resultados dos demais afiliados da equipe de {userName}
         </p>
       </div>
 

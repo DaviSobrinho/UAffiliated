@@ -16,28 +16,26 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
   const refreshBalance = useCallback(
     async (houseId: string) => {
       try {
-        // Always get current logged-in user from localStorage
-        const userStr = localStorage.getItem("user");
-        if (!userStr) return;
-
-        const userData = JSON.parse(userStr);
-        const userId = userData.id;
-
+        // Use /api/users/me/house-data for current logged-in user (not admin endpoint)
         const response = await fetch(
-          `/api/admin/users/${userId}/house-data?houseId=${houseId}`
+          `/api/users/me/house-data?houseId=${houseId}`
         );
 
         if (response.ok) {
           const data = await response.json();
-          const reais = parseFloat(data.userHouseData?.balance || "0");
+          const reais = parseFloat(data.houseData?.balance || "0");
           const formatted = reais.toLocaleString("pt-BR", {
             style: "currency",
             currency: "BRL",
           });
           setBalance(formatted);
+        } else {
+          // If balance can't be fetched, show 0
+          setBalance("R$ 0,00");
         }
       } catch (err) {
         console.error("[BALANCE] Erro ao atualizar saldo:", err);
+        setBalance("R$ 0,00");
       }
     },
     []

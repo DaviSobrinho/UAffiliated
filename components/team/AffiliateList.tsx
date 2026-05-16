@@ -3,17 +3,8 @@
 import { useState, useMemo } from "react";
 import { Search, Users } from "lucide-react";
 import { useHouse } from "@/context/HouseContext";
+import { Affiliate } from "@/types/affiliate";
 import AffiliateTreeNode from "./AffiliateTreeNode";
-
-interface Affiliate {
-  id: string;
-  name: string;
-  email: string;
-  commission: string;
-  linkedDate: string;
-  cpa: number | null;
-  cpaEditedOnce: boolean;
-}
 
 interface AffiliateListProps {
   affiliates: Affiliate[];

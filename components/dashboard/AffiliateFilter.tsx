@@ -3,12 +3,7 @@
 import { useEffect, useState, useRef } from "react";
 import { ChevronDown } from "lucide-react";
 import { useHouse } from "@/context/HouseContext";
-
-interface Affiliate {
-  id: string;
-  name: string;
-  level: number;
-}
+import { Affiliate } from "@/types/affiliate";
 
 interface AffiliateFilterProps {
   houseId: string;

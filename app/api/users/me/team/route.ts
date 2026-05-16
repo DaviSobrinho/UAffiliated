@@ -2,15 +2,30 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { verifyToken } from "@/lib/auth";
 import { resolveHouseId } from "@/lib/house-utils";
-import { getUserLevel } from "@/lib/affiliate-utils";
+import { getUserLevel, getAllDescendants } from "@/lib/affiliate-utils";
+import { Decimal } from "@prisma/client/runtime/library";
 
-// Get only direct children with data
-async function getDirectChildrenWithData(
+interface AffiliateRaw {
+  id: string;
+  name: string;
+  email: string;
+  createdAt: Date;
+  level: number;
+  hasChildren: boolean;
+  userHouseData: Array<{ cpa: Decimal; qftds: number; cpaEditedOnce: boolean }>;
+}
+
+// Get all descendants (any level) with data
+async function getAllDescendantsWithData(
   userId: string,
   houseId: string
-): Promise<any[]> {
-  const children = await prisma.user.findMany({
-    where: { affiliateParentId: userId },
+): Promise<AffiliateRaw[]> {
+  // Get all descendant IDs using the optimized function
+  const descendantIds = await getAllDescendants(userId);
+
+  // Fetch all descendants with their data
+  const descendants = await prisma.user.findMany({
+    where: { id: { in: descendantIds } },
     select: {
       id: true,
       name: true,
@@ -28,12 +43,12 @@ async function getDirectChildrenWithData(
   });
 
   const result = [];
-  for (const child of children) {
-    const level = await getUserLevel(child.id);
+  for (const descendant of descendants) {
+    const level = await getUserLevel(descendant.id);
     const childrenCount = await prisma.user.count({
-      where: { affiliateParentId: child.id },
+      where: { affiliateParentId: descendant.id },
     });
-    result.push({ ...child, level, hasChildren: childrenCount > 0 });
+    result.push({ ...descendant, level, hasChildren: childrenCount > 0 });
   }
 
   return result;
@@ -75,10 +90,10 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Casa não encontrada" }, { status: 404 });
     }
 
-    // Fetch only direct children with their levels
-    const directChildren = await getDirectChildrenWithData(decoded.id, houseId);
+    // Fetch all descendants (any level) with their levels
+    const allDescendants = await getAllDescendantsWithData(decoded.id, houseId);
 
-    const affiliates = directChildren
+    const affiliates = allDescendants
       .map((child) => {
         const houseData = child.userHouseData[0];
         const cpaBigDecimal = houseData ? Number(houseData.cpa) : 0;

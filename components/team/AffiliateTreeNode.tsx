@@ -3,17 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { ChevronRight, Loader2, Lock } from "lucide-react";
 import { useHouse } from "@/context/HouseContext";
-
-interface Affiliate {
-  id: string;
-  name: string;
-  email: string;
-  commission: string;
-  linkedDate: string;
-  cpa: number | null;
-  cpaEditedOnce: boolean;
-  hasChildren?: boolean;
-}
+import { Affiliate } from "@/types/affiliate";
 
 interface AffiliateTreeNodeProps {
   affiliate: Affiliate;

@@ -6,6 +6,8 @@ import { ChevronDown } from "lucide-react";
 import { HOUSE_THEMES } from "@/lib/houseThemes";
 import { useHouses } from "@/context/HousesContext";
 
+type House = ReturnType<typeof useHouses>["houses"][0];
+
 interface StatelessHouseSelectorProps {
   value: string;
   onChange: (houseId: string) => void;
@@ -40,7 +42,7 @@ export default function StatelessHouseSelector({
     );
   };
 
-  const getDisplayLogo = (house: DynamicHouse) => {
+  const getDisplayLogo = (house: House) => {
     const theme = getThemeByName(house.name);
     return house.logoUrl || theme?.logo || "";
   };
