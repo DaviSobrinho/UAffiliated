@@ -50,7 +50,7 @@ export default function ChartsSection({ houseId, timeframe, affiliateId, viewing
       }
     };
 
-    if (houseId) {
+    if (houseId && houseId !== "default") {
       fetchChartsData();
     }
   }, [houseId, timeframe, affiliateId, viewingUserId]);

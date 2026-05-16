@@ -12,7 +12,7 @@ export default function SidebarBottom() {
   const { balance, refreshBalance } = useBalance();
 
   useEffect(() => {
-    if (selectedHouse) {
+    if (selectedHouse && selectedHouse !== "default") {
       refreshBalance(selectedHouse);
     }
   }, [selectedHouse, refreshBalance]);

@@ -44,11 +44,22 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       },
     });
 
-    if (!userHouseData) {
-      return NextResponse.json({ error: "Dados de casa não encontrados" }, { status: 404 });
-    }
+    // Return default record with 0 balance if no data exists
+    const result = userHouseData || {
+      id: "",
+      userId,
+      houseId,
+      cpa: new Decimal(0),
+      affiliateLink: "",
+      registros: 0,
+      ftds: 0,
+      qftds: 0,
+      balance: new Decimal(0),
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
 
-    return NextResponse.json({ userHouseData }, { status: 200 });
+    return NextResponse.json({ userHouseData: result }, { status: 200 });
   } catch (error) {
     console.error("[HOUSE-DATA] Erro:", error);
     return NextResponse.json({ error: "Erro ao buscar dados da casa" }, { status: 500 });

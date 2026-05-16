@@ -45,7 +45,7 @@ export default function AffiliateFilter({ houseId, value, onChange, currentUserN
       }
     };
 
-    if (houseId) {
+    if (houseId && houseId !== "default") {
       fetchAffiliates();
     }
   }, [houseId]);

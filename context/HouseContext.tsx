@@ -87,14 +87,19 @@ export function HouseProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const saved = localStorage.getItem("selectedHouse");
 
-    if (saved && HOUSE_THEMES[saved]) {
-      // If saved is a predefined theme ID, use it immediately
+    if (saved) {
+      // Set house immediately (whether predefined or UUID)
       setSelectedHouse(saved);
-      const savedTheme = HOUSE_THEMES[saved];
-      setTheme(savedTheme);
-      applyThemeColors(savedTheme);
+
+      if (HOUSE_THEMES[saved]) {
+        // If it's a predefined theme, use it immediately
+        const savedTheme = HOUSE_THEMES[saved];
+        setTheme(savedTheme);
+        applyThemeColors(savedTheme);
+      }
+      // If it's a UUID, the Effect 2 will load the theme async
     } else {
-      // Apply default theme
+      // Apply default theme if nothing saved
       applyThemeColors(getDefaultTheme());
     }
   }, []);

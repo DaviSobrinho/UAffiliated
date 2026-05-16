@@ -70,9 +70,6 @@ async function main() {
     createdHouses[house.name] = created;
   }
 
-  const betano = createdHouses["Betano"];
-  const novibet = createdHouses["Novibet"];
-
   const hashedPassword = await bcrypt.hash("user123", 10);
 
   const n1 = await prisma.user.create({
@@ -150,82 +147,72 @@ async function main() {
     userCount++;
   }
 
-  // Create UserHouseData for all users with CPAs that decrease by level
-  const createHouseData = async (userId: string, betanoCpa: number, novibetCpa: number) => {
-    return [
-      await prisma.userHouseData.create({
-        data: {
-          userId,
-          houseId: betano.id,
-          cpa: betanoCpa,
-          affiliateLink: `betano/${userId}`,
-          registros: 0,
-          ftds: 0,
-          qftds: 0,
-        },
-      }),
-      await prisma.userHouseData.create({
-        data: {
-          userId,
-          houseId: novibet.id,
-          cpa: novibetCpa,
-          affiliateLink: `novibet/${userId}`,
-          registros: 0,
-          ftds: 0,
-          qftds: 0,
-        },
-      }),
-    ];
-  };
+  // Create sample UserHouseData only for admin user (for testing)
+  const betano = createdHouses["Betano"];
+  const novibet = createdHouses["Novibet"];
+  const stake = createdHouses["Stake"];
 
-  // CPAs decrease by level (200 → 150 → 100 → 50 → 25)
-  await createHouseData(n1.id, 200, 150);
+  if (betano && novibet && stake) {
+    // Create test records for admin
+    const adminBetanoSnapshots = await generateSnapshots(n1.id, betano.id, 200, 30);
+    const adminNovibetSnapshots = await generateSnapshots(n1.id, novibet.id, 150, 30);
+    const adminStakeSnapshots = await generateSnapshots(n1.id, stake.id, 175, 30);
 
-  // Create house data for all N2 users
-  for (const n2 of n2_users) {
-    await createHouseData(n2.id, 150, 120);
-  }
+    // Create userHouseData for admin
+    await prisma.userHouseData.create({
+      data: {
+        userId: n1.id,
+        houseId: betano.id,
+        cpa: 200,
+        affiliateLink: `betano/${n1.id}`,
+        registros: 0,
+        ftds: 0,
+        qftds: 0,
+      },
+    });
 
-  // Create house data for all N3 users
-  for (const n3 of n3_users) {
-    await createHouseData(n3.id, 100, 80);
-  }
+    await prisma.userHouseData.create({
+      data: {
+        userId: n1.id,
+        houseId: novibet.id,
+        cpa: 150,
+        affiliateLink: `novibet/${n1.id}`,
+        registros: 0,
+        ftds: 0,
+        qftds: 0,
+      },
+    });
 
-  // Create house data for all N4 users
-  for (const n4 of n4_users) {
-    await createHouseData(n4.id, 50, 40);
-  }
+    await prisma.userHouseData.create({
+      data: {
+        userId: n1.id,
+        houseId: stake.id,
+        cpa: 175,
+        affiliateLink: `stake/${n1.id}`,
+        registros: 0,
+        ftds: 0,
+        qftds: 0,
+      },
+    });
 
-  // Create house data for all N5 users
-  for (const n5 of n5_users) {
-    await createHouseData(n5.id, 25, 20);
-  }
-
-  // Generate and create snapshots for each user (including admin!)
-  const users = [
-    { id: n1.id, cpaB: 200, cpaN: 150 }, // Admin
-    ...n2_users.map((u) => ({ id: u.id, cpaB: 150, cpaN: 120 })),
-    ...n3_users.map((u) => ({ id: u.id, cpaB: 100, cpaN: 80 })),
-    ...n4_users.map((u) => ({ id: u.id, cpaB: 50, cpaN: 40 })),
-    ...n5_users.map((u) => ({ id: u.id, cpaB: 25, cpaN: 20 })),
-  ];
-
-  for (const u of users) {
-    const snapshotsBetano = await generateSnapshots(u.id, betano.id, u.cpaB, 30);
-    const snapshotsNovibet = await generateSnapshots(u.id, novibet.id, u.cpaN, 30);
-
+    // Create snapshots for admin's houses
     await prisma.dailySnapshot.createMany({
-      data: snapshotsBetano,
+      data: adminBetanoSnapshots,
       skipDuplicates: true,
     });
 
     await prisma.dailySnapshot.createMany({
-      data: snapshotsNovibet,
+      data: adminNovibetSnapshots,
       skipDuplicates: true,
     });
 
-    // Update UserHouseData totals based on snapshots
-    const totalsBetano = snapshotsBetano.reduce(
+    await prisma.dailySnapshot.createMany({
+      data: adminStakeSnapshots,
+      skipDuplicates: true,
+    });
+
+    // Update UserHouseData totals
+    const totalsBetano = adminBetanoSnapshots.reduce(
       (acc, s) => ({
         registros: acc.registros + s.registros,
         ftds: acc.ftds + s.ftds,
@@ -234,7 +221,16 @@ async function main() {
       { registros: 0, ftds: 0, qftds: 0 }
     );
 
-    const totalsNovibet = snapshotsNovibet.reduce(
+    const totalsNovibet = adminNovibetSnapshots.reduce(
+      (acc, s) => ({
+        registros: acc.registros + s.registros,
+        ftds: acc.ftds + s.ftds,
+        qftds: acc.qftds + s.qftds,
+      }),
+      { registros: 0, ftds: 0, qftds: 0 }
+    );
+
+    const totalsStake = adminStakeSnapshots.reduce(
       (acc, s) => ({
         registros: acc.registros + s.registros,
         ftds: acc.ftds + s.ftds,
@@ -244,13 +240,18 @@ async function main() {
     );
 
     await prisma.userHouseData.updateMany({
-      where: { userId: u.id, houseId: betano.id },
+      where: { userId: n1.id, houseId: betano.id },
       data: totalsBetano,
     });
 
     await prisma.userHouseData.updateMany({
-      where: { userId: u.id, houseId: novibet.id },
+      where: { userId: n1.id, houseId: novibet.id },
       data: totalsNovibet,
+    });
+
+    await prisma.userHouseData.updateMany({
+      where: { userId: n1.id, houseId: stake.id },
+      data: totalsStake,
     });
   }
 }
