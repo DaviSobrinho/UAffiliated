@@ -28,16 +28,20 @@ async function getAllDescendants(userId: string): Promise<string[]> {
   return descendants;
 }
 
+interface UserParent {
+  affiliateParentId: string | null;
+}
+
 // Calculate user level in hierarchy
 async function getUserLevel(userId: string): Promise<number> {
   let level = 1;
   let currentId: string | null = userId;
 
   while (currentId) {
-    const user = await prisma.user.findUnique({
+    const user: UserParent | null = await prisma.user.findUnique({
       where: { id: currentId },
       select: { affiliateParentId: true },
-    }) as { affiliateParentId: string | null } | null;
+    });
 
     if (!user || !user.affiliateParentId) break;
 
