@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { Decimal } from "@prisma/client/runtime/library";
 import { prisma } from "@/lib/prisma";
 import { verifyToken } from "@/lib/auth";
 import { resolveHouseId } from "@/lib/house-utils";
@@ -82,11 +83,13 @@ export async function GET(request: NextRequest) {
         id: `default-${decoded.id}-${houseId}`,
         userId: decoded.id,
         houseId,
-        cpa: 0,
+        cpa: new Decimal(0),
         affiliateLink: `${houseId.toLowerCase()}/${decoded.id}`,
         registros: 0,
         ftds: 0,
         qftds: 0,
+        balance: new Decimal(0),
+        cpaEditedOnce: false,
         createdAt: new Date(),
         updatedAt: new Date(),
       };

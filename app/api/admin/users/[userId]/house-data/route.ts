@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { Decimal } from "@prisma/client/runtime/library";
 import { prisma } from "@/lib/prisma";
 import { verifyToken } from "@/lib/auth";
 import { resolveHouseId } from "@/lib/house-utils";
@@ -113,7 +114,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
         data: {
           userId,
           houseId,
-          cpa: 0,
+          cpa: new Decimal(0),
           affiliateLink: affiliateLink || `${houseId}/${userId}`,
           registros: 0,
           ftds: 0,
