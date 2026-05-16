@@ -10,7 +10,7 @@ async function isDescendantOf(userId: string, nodeId: string): Promise<boolean> 
   const queue = [userId];
 
   while (queue.length > 0) {
-    const currentId = queue.shift();
+    const currentId = queue.shift()!;
 
     if (visited.has(currentId)) continue;
     visited.add(currentId);
