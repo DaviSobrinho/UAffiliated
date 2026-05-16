@@ -5,55 +5,13 @@ import Image from "next/image";
 import { ChevronDown } from "lucide-react";
 import { HOUSE_THEMES, HouseTheme } from "@/lib/houseThemes";
 import { useHouse } from "@/context/HouseContext";
-
-interface DynamicHouse {
-  id: string;
-  name: string;
-  color: string;
-  logoUrl?: string;
-}
+import { useHouses } from "@/context/HousesContext";
 
 export default function HouseSelector() {
   const { selectedHouse, setSelectedHouse } = useHouse();
+  const { houses, loading: loadingHouses } = useHouses();
   const [isOpen, setIsOpen] = useState(false);
-  const [dynamicHouses, setDynamicHouses] = useState<DynamicHouse[]>([]);
-  const [loadingHouses, setLoadingHouses] = useState(true);
   const dropdownRef = useRef<HTMLDivElement>(null);
-
-  const fetchHouses = async () => {
-    try {
-      const res = await fetch("/api/admin/houses");
-      if (res.ok) {
-        const data = await res.json();
-        setDynamicHouses(data.houses || []);
-      }
-    } catch (err) {
-      console.error("[HouseSelector] Erro ao buscar casas:", err);
-    } finally {
-      setLoadingHouses(false);
-    }
-  };
-
-  useEffect(() => {
-    // Delay the initial fetch to avoid startup bottleneck
-    const initialTimer = setTimeout(() => {
-      console.log("[HouseSelector] 🏠 Iniciando fetch de casas");
-      fetchHouses();
-    }, 500);
-
-    return () => {
-      clearTimeout(initialTimer);
-    };
-  }, []);
-
-  // Poll for new houses every 30 seconds (doesn't change selected house)
-  useEffect(() => {
-    const pollInterval = setInterval(() => {
-      fetchHouses();
-    }, 30000);
-
-    return () => clearInterval(pollInterval);
-  }, []);
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -73,12 +31,12 @@ export default function HouseSelector() {
   };
 
   const getDisplayName = (houseId: string) => {
-    const house = dynamicHouses.find((h) => h.id === houseId);
+    const house = houses.find((h) => h.id === houseId);
     return house?.name || "Casa";
   };
 
   const getDisplayColor = (houseId: string) => {
-    const house = dynamicHouses.find((h) => h.id === houseId);
+    const house = houses.find((h) => h.id === houseId);
     if (!house) return "#3b82f6";
 
     // Se a casa tem cor no banco, usa ela
@@ -90,7 +48,7 @@ export default function HouseSelector() {
   };
 
   const getDisplayLogo = (houseId: string) => {
-    const house = dynamicHouses.find((h) => h.id === houseId);
+    const house = houses.find((h) => h.id === houseId);
     if (!house) return undefined;
 
     // Se tem logo no R2, usa
@@ -144,10 +102,10 @@ export default function HouseSelector() {
           <div className="max-h-96 overflow-y-auto">
             {loadingHouses ? (
               <div className="px-4 py-3 text-zinc-400 text-sm">Carregando...</div>
-            ) : dynamicHouses.length === 0 ? (
+            ) : houses.length === 0 ? (
               <div className="px-4 py-3 text-zinc-400 text-sm">Nenhuma casa disponível</div>
             ) : (
-              dynamicHouses.map((house) => {
+              houses.map((house) => {
                 const logoUrl = getDisplayLogo(house.id);
                 const houseColor = getDisplayColor(house.id);
 

@@ -4,13 +4,7 @@ import { useState, useRef, useEffect } from "react";
 import Image from "next/image";
 import { ChevronDown } from "lucide-react";
 import { HOUSE_THEMES } from "@/lib/houseThemes";
-
-interface DynamicHouse {
-  id: string;
-  name: string;
-  color: string;
-  logoUrl?: string;
-}
+import { useHouses } from "@/context/HousesContext";
 
 interface StatelessHouseSelectorProps {
   value: string;
@@ -26,27 +20,8 @@ export default function StatelessHouseSelector({
   disabled = false,
 }: StatelessHouseSelectorProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const [dynamicHouses, setDynamicHouses] = useState<DynamicHouse[]>([]);
-  const [loadingHouses, setLoadingHouses] = useState(true);
+  const { houses, loading: loadingHouses } = useHouses();
   const dropdownRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const fetchHouses = async () => {
-      try {
-        const res = await fetch("/api/admin/houses");
-        if (res.ok) {
-          const data = await res.json();
-          setDynamicHouses(data.houses || []);
-        }
-      } catch (err) {
-        console.error("Erro ao buscar casas:", err);
-      } finally {
-        setLoadingHouses(false);
-      }
-    };
-
-    fetchHouses();
-  }, []);
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -70,15 +45,15 @@ export default function StatelessHouseSelector({
     return house.logoUrl || theme?.logo || "";
   };
 
-  const currentHouse = dynamicHouses.find((h) => h.id === value);
+  const currentHouse = houses.find((h) => h.id === value);
   const currentTheme = getThemeByName(currentHouse?.name || "") || HOUSE_THEMES.betano;
   const currentLogo = currentHouse ? getDisplayLogo(currentHouse) : currentTheme.logo;
 
   // Combine dynamic houses with pre-defined themes
   const allHouses = [
-    ...dynamicHouses,
+    ...houses,
     ...Object.values(HOUSE_THEMES)
-      .filter(theme => !dynamicHouses.find(h => h.name.toLowerCase() === theme.name.toLowerCase()))
+      .filter(theme => !houses.find(h => h.name.toLowerCase() === theme.name.toLowerCase()))
       .map(theme => ({
         id: theme.id,
         name: theme.name,

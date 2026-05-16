@@ -3,7 +3,7 @@
 import Image from "next/image";
 import { Menu, X } from "lucide-react";
 import { useHouse } from "@/context/HouseContext";
-import { useState, useEffect } from "react";
+import { useLogo } from "@/context/LogoContext";
 
 interface MobileHeaderProps {
   isOpen: boolean;
@@ -12,27 +12,7 @@ interface MobileHeaderProps {
 
 export default function MobileHeader({ isOpen, onToggle }: MobileHeaderProps) {
   const { theme } = useHouse();
-  const [logoUrl, setLogoUrl] = useState<string | null>(null);
-  const [logoLoading, setLogoLoading] = useState(true);
-
-  useEffect(() => {
-    const fetchLogo = async () => {
-      try {
-        setLogoLoading(true);
-        const res = await fetch("/api/settings");
-        if (res.ok) {
-          const data = await res.json();
-          setLogoUrl(data.logoUrl);
-        }
-      } catch (err) {
-        console.error("Error fetching logo:", err);
-      } finally {
-        setLogoLoading(false);
-      }
-    };
-
-    fetchLogo();
-  }, []);
+  const { logoUrl, logoLoading } = useLogo();
 
   return (
     <div

@@ -188,6 +188,7 @@ export default function TeamPage() {
                   houseId={selectedHouse}
                   value={selectedAffiliateId}
                   onChange={setSelectedAffiliateId}
+                  affiliates={affiliates}
                 />
               </div>
             </div>

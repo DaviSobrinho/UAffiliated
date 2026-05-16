@@ -15,18 +15,27 @@ interface AffiliateFilterProps {
   value: string;
   onChange: (affiliateId: string) => void;
   currentUserName?: string;
+  affiliates?: Affiliate[];
 }
 
-export default function AffiliateFilter({ houseId, value, onChange, currentUserName = "Você" }: AffiliateFilterProps) {
+export default function AffiliateFilter({ houseId, value, onChange, currentUserName = "Você", affiliates: providedAffiliates }: AffiliateFilterProps) {
   const { theme } = useHouse();
-  const [affiliates, setAffiliates] = useState<Affiliate[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [affiliates, setAffiliates] = useState<Affiliate[]>(providedAffiliates || []);
+  const [loading, setLoading] = useState(!providedAffiliates);
   const [isOpen, setIsOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const containerRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
+    // If affiliates are provided via props, use them directly
+    if (providedAffiliates) {
+      setAffiliates(providedAffiliates);
+      setLoading(false);
+      return;
+    }
+
+    // Otherwise, fetch them
     const fetchAffiliates = async () => {
       try {
         setLoading(true);
@@ -48,7 +57,7 @@ export default function AffiliateFilter({ houseId, value, onChange, currentUserN
     if (houseId && houseId !== "default") {
       fetchAffiliates();
     }
-  }, [houseId]);
+  }, [houseId, providedAffiliates]);
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {

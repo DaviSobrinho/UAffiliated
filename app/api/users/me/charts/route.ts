@@ -120,11 +120,14 @@ export async function GET(request: NextRequest) {
       },
     });
 
-    // Fetch user's CPA for commission calculation
+    // Determine the user to calculate commission for
+    const commissionUserId = affiliateId === "all" ? decoded.id : affiliateId;
+
+    // Fetch commission user's CPA for commission calculation
     const userHouseData = await prisma.userHouseData.findUnique({
       where: {
         userId_houseId: {
-          userId: decoded.id,
+          userId: commissionUserId,
           houseId,
         },
       },
@@ -144,9 +147,9 @@ export async function GET(request: NextRequest) {
       targetUserHouseData.map((data) => [data.userId, Math.round(Number(data.cpa) * 100)])
     );
 
-    // Get direct children
+    // Get direct children of the commission user
     const directChildren = await prisma.user.findMany({
-      where: { affiliateParentId: decoded.id },
+      where: { affiliateParentId: commissionUserId },
       select: { id: true },
     });
     const directChildrenIds = directChildren.map(c => c.id);
@@ -164,7 +167,7 @@ export async function GET(request: NextRequest) {
 
       // Add own commission (own CPA × own QFTDS)
       for (const snap of snapshots) {
-        if (snap.userId === decoded.id) {
+        if (snap.userId === commissionUserId) {
           totalCents += userCpaCents * snap.qftds;
         }
       }

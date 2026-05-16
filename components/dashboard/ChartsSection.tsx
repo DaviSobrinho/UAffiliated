@@ -53,7 +53,7 @@ export default function ChartsSection({ houseId, timeframe, affiliateId, viewing
     if (houseId && houseId !== "default") {
       fetchChartsData();
     }
-  }, [houseId, timeframe, affiliateId, viewingUserId]);
+  }, [houseId, timeframe, affiliateId]);
 
   return (
     <div className="space-y-4 md:space-y-6">
